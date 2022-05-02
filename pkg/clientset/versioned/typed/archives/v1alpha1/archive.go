@@ -113,7 +113,7 @@ func (c *archives) UpdateStatus(ctx context.Context, archive *v1alpha1.Archive, 
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("archives").
-		Name(archives.Name).
+		Name(archive.Name).
 		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(archive).

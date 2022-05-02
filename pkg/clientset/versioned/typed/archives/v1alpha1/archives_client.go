@@ -29,7 +29,7 @@ func NewForConfig(c *rest.Config) (*ArchivesClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ArchivesClient{client}, nil
+	return &ArchivesClient{client}, nil
 }
 
 func NewForConfigOrDie(c *rest.Config) *ArchivesClient {
@@ -45,7 +45,7 @@ func New(c rest.Interface) *ArchivesClient {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := berth.SchemeGroupVersion
+	gv := berth.GroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
