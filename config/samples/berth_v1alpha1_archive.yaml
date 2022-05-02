@@ -1,0 +1,6 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: Archive
+metadata:
+  name: archive-sample
+spec:
+  url: "http://minio.home.arpa:9000/kubevirt/images/ubuntu-20.04-server-cloudimg-arm64.img"

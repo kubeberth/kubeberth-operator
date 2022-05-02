@@ -1,0 +1,97 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - archives
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - archives/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - archives/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - disks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - disks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - disks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - servers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - servers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - servers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cdi.kubevirt.io
+  resources:
+  - dvs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

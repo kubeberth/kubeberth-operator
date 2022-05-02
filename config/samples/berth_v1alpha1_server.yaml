@@ -1,0 +1,16 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: Server
+metadata:
+  name: server-sample
+spec:
+  running: true
+  cpu: 2
+  memory: 2Gi
+  macAddress: 52:42:00:c7:90:10
+  hostname: server-sample
+  disk:
+    name: disk-sample
+    namespace: default
+  cloudInit:
+    name: cloudinit-sample
+    namespace: default

@@ -1,0 +1,20 @@
+# permissions for end users to view cloudinits.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cloudinit-viewer-role
+rules:
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - cloudinits
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - cloudinits/status
+  verbs:
+  - get

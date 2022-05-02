@@ -1,0 +1,20 @@
+# permissions for end users to view kubeberths.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeberth-viewer-role
+rules:
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - kubeberths
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - kubeberths/status
+  verbs:
+  - get

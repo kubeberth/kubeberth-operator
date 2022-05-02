@@ -1,0 +1,10 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: Disk
+metadata:
+  name: disk-sample
+spec:
+  size: 32Gi
+  source:
+    archive:
+      name: archive-sample
+      namespace: default

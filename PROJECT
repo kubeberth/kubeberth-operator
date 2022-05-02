@@ -1,0 +1,50 @@
+domain: kubeberth.io
+layout:
+- go.kubebuilder.io/v3
+projectName: berth-operator
+repo: github.com/kubeberth/berth-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubeberth.io
+  group: berth
+  kind: Disk
+  path: github.com/kubeberth/berth-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubeberth.io
+  group: berth
+  kind: Server
+  path: github.com/kubeberth/berth-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubeberth.io
+  group: berth
+  kind: Archive
+  path: github.com/kubeberth/berth-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: kubeberth.io
+  group: berth
+  kind: CloudInit
+  path: github.com/kubeberth/berth-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: kubeberth.io
+  group: berth
+  kind: KubeBerth
+  path: github.com/kubeberth/berth-operator/api/v1alpha1
+  version: v1alpha1
+version: "3"
