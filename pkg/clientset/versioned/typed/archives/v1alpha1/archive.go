@@ -48,8 +48,7 @@ func (c *archives) Get(ctx context.Context, name string, options v1.GetOptions) 
 		Resource("archives").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
@@ -65,8 +64,7 @@ func (c *archives) List(ctx context.Context, opts v1.ListOptions) (result *v1alp
 		Resource("archives").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
@@ -82,8 +80,7 @@ func (c *archives) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interf
 		Resource("archives").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		//Watch(ctx)
-		Watch()
+		Watch(ctx)
 }
 
 func (c *archives) Create(ctx context.Context, archive *v1alpha1.Archive, opts v1.CreateOptions) (result *v1alpha1.Archive, err error) {
@@ -93,8 +90,7 @@ func (c *archives) Create(ctx context.Context, archive *v1alpha1.Archive, opts v
 		Resource("archives").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(archive).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
@@ -107,8 +103,7 @@ func (c *archives) Update(ctx context.Context, archive *v1alpha1.Archive, opts v
 		Name(archive.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(archive).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
@@ -122,8 +117,7 @@ func (c *archives) UpdateStatus(ctx context.Context, archive *v1alpha1.Archive, 
 		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(archive).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
@@ -134,8 +128,7 @@ func (c *archives) Delete(ctx context.Context, name string, opts v1.DeleteOption
 		Resource("archives").
 		Name(name).
 		Body(&opts).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Error()
 }
 
@@ -150,8 +143,7 @@ func (c *archives) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, 
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(&opts).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Error()
 }
 
@@ -164,8 +156,7 @@ func (c *archives) Patch(ctx context.Context, name string, pt types.PatchType, d
 		SubResource(subresources...).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		//Do(ctx).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
