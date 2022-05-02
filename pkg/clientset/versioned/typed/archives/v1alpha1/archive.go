@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"context"
 	v1alpha1 "github.com/kubeberth/berth-operator/api/v1alpha1"
-	scheme "github.com/sosomasox/kaph-controller-manager/pkg/clientset/versioned/scheme"
+	scheme "github.com/kubeberth/berth-operator/pkg/clientset/versioned/scheme"
 	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,9 +3,9 @@ package versioned
 import (
 	"fmt"
 	archives   "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
-    cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
-    disks      "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
-    servers    "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
+	cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
+	disks      "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
+	servers    "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -15,19 +15,19 @@ import (
 type Interface interface {
 	Discovery()  discovery.DiscoveryInterface
 	Archives()   archives.ArchivesInterface
-    CloudInits() cloudinits.CloudInitsInterface
-    Disks()      disks.DisksInterface
-    Servers()    servers.ServersInterface
+	CloudInits() cloudinits.CloudInitsInterface
+	Disks()      disks.DisksInterface
+	Servers()    servers.ServersInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-    archives   *archives.ArchivesClient
-    cloudinits *cloudinits.CloudInitsClient
-    disks      *disks.DisksClient
-    servers    *servers.ServersClient
+	archives   *archives.ArchivesClient
+	cloudinits *cloudinits.CloudInitsClient
+	disks      *disks.DisksClient
+	servers    *servers.ServersClient
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -102,10 +102,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
-    cs.archives        = archives.NewForConfigOrDie(c)
-    cs.cloudinits      = cloudinits.NewForConfigOrDie(c)
-    cs.disks           = disks.NewForConfigOrDie(c)
-    cs.servers         = servers.NewForConfigOrDie(c)
+	cs.archives        = archives.NewForConfigOrDie(c)
+	cs.cloudinits      = cloudinits.NewForConfigOrDie(c)
+	cs.disks           = disks.NewForConfigOrDie(c)
+	cs.servers         = servers.NewForConfigOrDie(c)
 
 	return &cs
 }
@@ -114,10 +114,10 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
-    cs.archives        = archives.New(c)
-    cs.cloudinits      = cloudinits.New(c)
-    cs.disks           = disks.New(c)
-    cs.servers         = servers.New(c)
+	cs.archives        = archives.New(c)
+	cs.cloudinits      = cloudinits.New(c)
+	cs.disks           = disks.New(c)
+	cs.servers         = servers.New(c)
 
 	return &cs
 }
