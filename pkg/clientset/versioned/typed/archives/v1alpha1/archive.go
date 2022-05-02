@@ -34,7 +34,7 @@ type archives struct {
 	ns     string
 }
 
-func newArchives(c *EvmsV1alpha1Client, namespace string) *archives {
+func newArchives(c *ArchivesClient, namespace string) *archives {
 	return &archives{
 		client: c.RESTClient(),
 		ns:     namespace,
