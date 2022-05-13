@@ -2,10 +2,10 @@ apiVersion: berth.kubeberth.io/v1alpha1
 kind: CloudInit
 metadata:
   name: cloudinit-sample
+  namespace: kubeberth
 spec:
   userData: |
     #cloud-config
-    #hostname: server-sample
     timezone: Asia/Tokyo
     ssh_pwauth: True
     password: ubuntu

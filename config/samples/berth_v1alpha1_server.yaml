@@ -2,6 +2,7 @@ apiVersion: berth.kubeberth.io/v1alpha1
 kind: Server
 metadata:
   name: server-sample
+  namespace: kubeberth
 spec:
   running: true
   cpu: 2
@@ -10,7 +11,7 @@ spec:
   hostname: server-sample
   disk:
     name: disk-sample
-    namespace: default
+    namespace: kubeberth
   cloudInit:
     name: cloudinit-sample
-    namespace: default
+    namespace: kubeberth
