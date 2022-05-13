@@ -4,8 +4,8 @@ import (
 	"fmt"
 	archives "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
 	cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
-	disks      "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
-	//servers    "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
+	disks "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
+	servers "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -13,11 +13,11 @@ import (
 )
 
 type Interface interface {
-	Discovery()  discovery.DiscoveryInterface
-	Archives()   archives.ArchivesInterface
+	Discovery() discovery.DiscoveryInterface
+	Archives() archives.ArchivesInterface
 	CloudInits() cloudinits.CloudInitsInterface
-	Disks()      disks.DisksInterface
-	//Servers()    servers.ServersInterface
+	Disks() disks.DisksInterface
+	Servers() servers.ServersInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -27,7 +27,7 @@ type Clientset struct {
 	archives   *archives.ArchivesClient
 	cloudinits *cloudinits.CloudInitsClient
 	disks      *disks.DisksClient
-	//servers    *servers.ServersClient
+	servers    *servers.ServersClient
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -50,11 +50,9 @@ func (c *Clientset) Disks() disks.DisksInterface {
 	return c.disks
 }
 
-/*
 func (c *Clientset) Servers() servers.ServersInterface {
 	return c.servers
 }
-*/
 
 // NewForConfig creates a new Clientset for the given config.
 // If config's RateLimiter is not set and QPS and Burst are acceptable,
@@ -91,12 +89,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 
-	/*
-		cs.servers, err = servers.NewForConfig(&configShallowCopy)
-		if err != nil {
-			return nil, err
-		}
-	*/
+	cs.servers, err = servers.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	return &cs, nil
 }
@@ -108,8 +104,8 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	cs.archives = archives.NewForConfigOrDie(c)
 	cs.cloudinits = cloudinits.NewForConfigOrDie(c)
-	cs.disks           = disks.NewForConfigOrDie(c)
-	//cs.servers         = servers.NewForConfigOrDie(c)
+	cs.disks = disks.NewForConfigOrDie(c)
+	cs.servers = servers.NewForConfigOrDie(c)
 
 	return &cs
 }
@@ -120,8 +116,8 @@ func New(c rest.Interface) *Clientset {
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	cs.archives = archives.New(c)
 	cs.cloudinits = cloudinits.New(c)
-	cs.disks           = disks.New(c)
-	//cs.servers         = servers.New(c)
+	cs.disks = disks.New(c)
+	cs.servers = servers.New(c)
 
 	return &cs
 }
