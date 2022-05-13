@@ -15,7 +15,7 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	Archives() archives.ArchivesInterface
-	//CloudInits() cloudinits.CloudInitsInterface
+	CloudInits() cloudinits.CloudInitsInterface
 	//Disks()      disks.DisksInterface
 	//Servers()    servers.ServersInterface
 }
