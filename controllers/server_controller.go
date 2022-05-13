@@ -196,10 +196,30 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	kubeberthNsN := types.NamespacedName{
+		Namespace: "kubeberth",
+		Name:      "kubeberth",
+	}
+
+	// Get the KubeBerth.
+	kubeberth := &berthv1alpha1.KubeBerth{}
+	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
+	annotations := map[string]string{
+		"external-dns.alpha.kubernetes.io/hostname": server.Name + "." + externalDNSDomainName,
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name,
-			Namespace: server.Namespace,
+			Name:        server.Name,
+			Namespace:   server.Namespace,
+			Annotations: annotations,
 		},
 	}
 

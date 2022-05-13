@@ -31,6 +31,8 @@ type KubeBerthSpec struct {
 	//+kubebuilder:validation:Required
 	//+kubebuilder:validation:Format=string
 	StorageClassName string `json:"storageClassName"`
+	//+optional
+	ExternalDNSDomainName string `json:"externalDNSDomainName"`
 }
 
 // KubeBerthStatus defines the observed state of KubeBerth
@@ -38,11 +40,13 @@ type KubeBerthStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	StorageCLass string `json:"storageClass"`
+	StorageClass      string `json:"storageClass"`
+	ExternalDNSDomain string `json:"externalDNSDomain"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:printcolumn:name="StorageClass",type="string",JSONPath=".status.storageClass",description=""
+//+kubebuilder:printcolumn:name="ExternalDNSDomain",type="string",JSONPath=".status.externalDNSDomain",description=""
 //+kubebuilder:subresource:status
 
 // KubeBerth is the Schema for the kubeberths API

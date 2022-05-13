@@ -19,6 +19,9 @@ spec:
     - jsonPath: .status.storageClass
       name: StorageClass
       type: string
+    - jsonPath: .status.externalDNSDomain
+      name: ExternalDNSDomain
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -39,6 +42,8 @@ spec:
           spec:
             description: KubeBerthSpec defines the desired state of KubeBerth
             properties:
+              externalDNSDomainName:
+                type: string
               storageClassName:
                 format: string
                 type: string
@@ -48,9 +53,12 @@ spec:
           status:
             description: KubeBerthStatus defines the observed state of KubeBerth
             properties:
+              externalDNSDomain:
+                type: string
               storageClass:
                 type: string
             required:
+            - externalDNSDomain
             - storageClass
             type: object
         type: object

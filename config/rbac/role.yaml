@@ -60,6 +60,32 @@ rules:
 - apiGroups:
   - berth.kubeberth.io
   resources:
+  - kubeberths
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - kubeberths/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - kubeberths/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
   - servers
   verbs:
   - create
