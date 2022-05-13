@@ -3,7 +3,7 @@ package versioned
 import (
 	"fmt"
 	archives "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
-	//cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
+	cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
 	//disks      "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
 	//servers    "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
@@ -25,7 +25,7 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	archives *archives.ArchivesClient
-	//cloudinits *cloudinits.CloudInitsClient
+	cloudinits *cloudinits.CloudInitsClient
 	//disks      *disks.DisksClient
 	//servers    *servers.ServersClient
 }
@@ -42,11 +42,11 @@ func (c *Clientset) Archives() archives.ArchivesInterface {
 	return c.archives
 }
 
-/*
 func (c *Clientset) CloudInits() cloudinits.CloudInitsInterface {
 	return c.cloudinits
 }
 
+/*
 func (c *Clientset) Disks() disks.DisksInterface {
 	return c.disks
 }
@@ -81,12 +81,12 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 
-	/*
-		cs.cloudinits, err = cloudinits.NewForConfig(&configShallowCopy)
-		if err != nil {
-			return nil, err
-		}
+	cs.cloudinits, err = cloudinits.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
+	/*
 		cs.disks, err = disks.NewForConfig(&configShallowCopy)
 		if err != nil {
 			return nil, err
@@ -107,8 +107,8 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	cs.archives = archives.NewForConfigOrDie(c)
+	cs.cloudinits = cloudinits.NewForConfigOrDie(c)
 	/*
-		cs.cloudinits      = cloudinits.NewForConfigOrDie(c)
 		cs.disks           = disks.NewForConfigOrDie(c)
 		cs.servers         = servers.NewForConfigOrDie(c)
 	*/
@@ -120,8 +120,8 @@ func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	cs.archives = archives.New(c)
+	cs.cloudinits = cloudinits.New(c)
 	/*
-		cs.cloudinits      = cloudinits.New(c)
 		cs.disks           = disks.New(c)
 		cs.servers         = servers.New(c)
 	*/
