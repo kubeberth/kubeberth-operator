@@ -47,7 +47,7 @@ type DiskReconciler struct {
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks/finalizers,verbs=update
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=archives,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=dvs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

@@ -10,7 +10,7 @@ resources:
   controller: true
   domain: kubeberth.io
   group: berth
-  kind: Disk
+  kind: KubeBerth
   path: github.com/kubeberth/berth-operator/api/v1alpha1
   version: v1alpha1
 - api:
@@ -19,7 +19,7 @@ resources:
   controller: true
   domain: kubeberth.io
   group: berth
-  kind: Server
+  kind: CloudInit
   path: github.com/kubeberth/berth-operator/api/v1alpha1
   version: v1alpha1
 - api:
@@ -34,9 +34,10 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
+  controller: true
   domain: kubeberth.io
   group: berth
-  kind: CloudInit
+  kind: Disk
   path: github.com/kubeberth/berth-operator/api/v1alpha1
   version: v1alpha1
 - api:
@@ -45,7 +46,7 @@ resources:
   controller: true
   domain: kubeberth.io
   group: berth
-  kind: KubeBerth
+  kind: Server
   path: github.com/kubeberth/berth-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

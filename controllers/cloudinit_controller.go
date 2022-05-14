@@ -24,34 +24,33 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	berthv1alpha1 "github.com/kubeberth/berth-operator/api/v1alpha1"
 )
 
-// ArchiveReconciler reconciles a Archive object
-type ArchiveReconciler struct {
+// CloudInitReconciler reconciles a CloudInit object
+type CloudInitReconciler struct {
 	client.Client
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=archives,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=archives/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=archives/finalizers,verbs=update
+//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=cloudinits,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=cloudinits/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=berth.kubeberth.io,resources=cloudinits/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the Archive object against the actual cluster state, and then
+// the CloudInit object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+func (r *CloudInitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	//log := r.Log.WithValues("CloudInit", req.NamespacedName)
 
 	// TODO(user): your logic here
 
@@ -59,8 +58,8 @@ func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ArchiveReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *CloudInitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&berthv1alpha1.Archive{}).
+		For(&berthv1alpha1.CloudInit{}).
 		Complete(r)
 }
