@@ -127,7 +127,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 						Devices: kubevirtv1.Devices{
 							Disks: []kubevirtv1.Disk{
 								kubevirtv1.Disk{
-									Name: server.Spec.Disk.Name,
+									Name: server.Spec.Disk.Name + "-disk",
 									DiskDevice: kubevirtv1.DiskDevice{
 										Disk: &kubevirtv1.DiskTarget{
 											Bus: "virtio",
@@ -135,7 +135,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 									},
 								},
 								kubevirtv1.Disk{
-									Name: cloudInit.Name,
+									Name: cloudInit.Name + "-cloudinit",
 									DiskDevice: kubevirtv1.DiskDevice{
 										CDRom: &kubevirtv1.CDRomTarget{
 											Bus:      "scsi",
@@ -165,7 +165,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 					},
 					Volumes: []kubevirtv1.Volume{
 						kubevirtv1.Volume{
-							Name: server.Spec.Disk.Name,
+							Name: server.Spec.Disk.Name + "-disk",
 							VolumeSource: kubevirtv1.VolumeSource{
 								DataVolume: &kubevirtv1.DataVolumeSource{
 									Name: server.Spec.Disk.Name,
@@ -173,7 +173,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							},
 						},
 						kubevirtv1.Volume{
-							Name: cloudInit.Name,
+							Name: cloudInit.Name + "-cloudinit",
 							VolumeSource: kubevirtv1.VolumeSource{
 								CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 									UserData: userData,
