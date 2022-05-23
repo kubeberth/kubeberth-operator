@@ -29,9 +29,9 @@ type CloudInitSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	//+optional
-	UserData string `json:"userData"`
+	UserData string `json:"userData,omitempty"`
 	//+optional
-	NetworkData string `json:"networkData"`
+	NetworkData string `json:"networkData,omitempty"`
 }
 
 // CloudInitStatus defines the observed state of CloudInit
