@@ -149,7 +149,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 									Name:       "default",
 									MacAddress: server.Spec.MACAddress,
 									InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-										Masquerade: &kubevirtv1.InterfaceMasquerade{},
+										Bridge: &kubevirtv1.InterfaceBridge{},
 									},
 								},
 							},
