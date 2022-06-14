@@ -213,7 +213,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Name + "." + externalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": server.Spec.HostName + "." + externalDNSDomainName,
 	}
 
 	service := &corev1.Service{
