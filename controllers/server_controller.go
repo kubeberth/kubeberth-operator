@@ -116,6 +116,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Hostname: server.Spec.HostName,
 					Domain: kubevirtv1.DomainSpec{
 						CPU: &kubevirtv1.CPU{
 							Cores: uint32(server.Spec.CPU.Value()),
@@ -233,7 +234,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	labels := map[string]string{
-		"vm.kubevirt.io/name": server.Name,
+		"vm.kubevirt.io/name": server.Spec.HostName,
 	}
 
 	service.Spec.Type = corev1.ServiceTypeLoadBalancer
