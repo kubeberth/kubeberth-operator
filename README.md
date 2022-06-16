@@ -1,4 +1,4 @@
-# berth-operator
+# kubeberth-operator
 
 ```
 $ go version
