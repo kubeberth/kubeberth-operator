@@ -149,7 +149,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 									Name:       "default",
 									MacAddress: server.Spec.MACAddress,
 									InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-										Masquerade: &kubevirtv1.InterfaceMasquerade{},
+										Bridge: &kubevirtv1.InterfaceBridge{},
 									},
 								},
 							},
@@ -213,7 +213,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Name + "." + externalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": server.Spec.HostName + "." + externalDNSDomainName,
 	}
 
 	service := &corev1.Service{
@@ -234,7 +234,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	labels := map[string]string{
-		"vm.kubevirt.io/name": server.Name,
+		"vm.kubevirt.io/name": server.Spec.HostName,
 	}
 
 	service.Spec.Type = corev1.ServiceTypeLoadBalancer
