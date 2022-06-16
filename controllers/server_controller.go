@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -83,6 +84,36 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+
+	finalizerName := "finalizers.servers.berth.kubeberth.io"
+	if server.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(server, finalizerName) {
+			controllerutil.AddFinalizer(server, finalizerName)
+
+			err := r.Update(ctx, server)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(server, finalizerName) {
+
+			disk.Status.State = "Detached"
+			if err := r.Status().Update(ctx, disk); err != nil {
+				log.Error(err, "unable to update Disk status")
+				return ctrl.Result{}, err
+			}
+
+			controllerutil.RemoveFinalizer(server, finalizerName)
+
+			err := r.Update(ctx, server)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	cloudInitNsN := types.NamespacedName{
@@ -274,13 +305,11 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	/*
-		disk.Status.State = "Attached"
-		if err := r.Status().Update(ctx, disk); err != nil {
-			log.Error(err, "unable to update Disk status")
-			return ctrl.Result{}, err
-		}
-	*/
+	disk.Status.State = "Attached"
+	if err := r.Status().Update(ctx, disk); err != nil {
+		log.Error(err, "unable to update Disk status")
+		return ctrl.Result{}, err
+	}
 
 	if *server.Spec.Running {
 		server.Status.State = "Running"
