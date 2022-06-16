@@ -1,8 +1,8 @@
 package v1alpha1
 
 import (
-	berth "github.com/kubeberth/berth-operator/api/v1alpha1"
-	"github.com/kubeberth/berth-operator/pkg/clientset/versioned/scheme"
+	berth "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
+	"github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/scheme"
 
 	rest "k8s.io/client-go/rest"
 )

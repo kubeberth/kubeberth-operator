@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	berthv1alpha1 "github.com/kubeberth/berth-operator/api/v1alpha1"
+	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 )
 
 // ArchiveReconciler reconciles a Archive object
