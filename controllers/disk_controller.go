@@ -32,7 +32,7 @@ import (
 
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	berthv1alpha1 "github.com/kubeberth/berth-operator/api/v1alpha1"
+	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 )
 
 // DiskReconciler reconciles a Disk object

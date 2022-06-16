@@ -1,4 +1,4 @@
-module github.com/kubeberth/berth-operator
+module github.com/kubeberth/kubeberth-operator
 
 go 1.17
 

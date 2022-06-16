@@ -26,7 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	berthv1alpha1 "github.com/kubeberth/berth-operator/api/v1alpha1"
+	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 )
 
 // KubeBerthReconciler reconciles a KubeBerth object

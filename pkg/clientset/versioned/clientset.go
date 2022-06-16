@@ -2,10 +2,10 @@ package versioned
 
 import (
 	"fmt"
-	archives "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
-	cloudinits "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
-	disks "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
-	servers "github.com/kubeberth/berth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
+	archives "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
+	cloudinits "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
+	disks "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
+	servers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
