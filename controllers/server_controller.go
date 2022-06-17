@@ -364,6 +364,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		server.Status.IP = createdVMI.Status.Interfaces[0].IP
 	}
 
+	server.Status.Hosting = createdVMI.Status.NodeName
+
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update Server status")
 		return ctrl.Result{}, err

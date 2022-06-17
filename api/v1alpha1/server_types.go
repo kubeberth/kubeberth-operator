@@ -60,6 +60,7 @@ type ServerStatus struct {
 	Memory   string `json:"memory"`
 	HostName string `json:"hostname"`
 	IP       string `json:"ip"`
+	Hosting  string `json:"hosting"`
 }
 
 //+kubebuilder:object:root=true
@@ -68,6 +69,7 @@ type ServerStatus struct {
 //+kubebuilder:printcolumn:name="Memory",type="string",JSONPath=".status.memory",description=""
 //+kubebuilder:printcolumn:name="HostName",type="string",JSONPath=".status.hostname",description=""
 //+kubebuilder:printcolumn:name="IP",type="string",JSONPath=".status.ip",description=""
+//+kubebuilder:printcolumn:name="Hosting",type="string",JSONPath=".status.hosting",description=""
 //+kubebuilder:subresource:status
 
 // Server is the Schema for the servers API
