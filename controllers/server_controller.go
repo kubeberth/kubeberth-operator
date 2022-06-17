@@ -341,13 +341,27 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	createdVMI := &kubevirtv1.VirtualMachineInstance{}
+	if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
 	server.Status.State = (string)(createdVM.Status.PrintableStatus)
 	server.Status.CPU = server.Spec.CPU.String()
 	server.Status.Memory = server.Spec.Memory.String()
 	server.Status.HostName = server.Spec.HostName
 
-	if len(createdService.Status.LoadBalancer.Ingress) > 0 {
-		server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
+	/*
+		if len(createdService.Status.LoadBalancer.Ingress) > 0 {
+			server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
+		}
+	*/
+
+	if len(createdVMI.Status.Interfaces) > 0 {
+		server.Status.IP = createdVMI.Status.Interfaces[0].IP
 	}
 
 	if err := r.Status().Update(ctx, server); err != nil {
