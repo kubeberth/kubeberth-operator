@@ -23,6 +23,13 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// AttachedCloudInit will be used by Server Resource
+
+type AttachedCloudInit struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
 // CloudInitSpec defines the desired state of CloudInit
 type CloudInitSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster

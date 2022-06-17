@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -71,6 +72,53 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	finalizerName := "finalizers.servers.berth.kubeberth.io"
+
+	if server.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(server, finalizerName) {
+			controllerutil.AddFinalizer(server, finalizerName)
+
+			err := r.Update(ctx, server)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(server, finalizerName) {
+
+			diskNsN := types.NamespacedName{
+				Namespace: server.Spec.Disk.Namespace,
+				Name:      server.Spec.Disk.Name,
+			}
+
+			// Get the Disk.
+			disk := &berthv1alpha1.Disk{}
+			err := r.Get(ctx, diskNsN, disk)
+			if err == nil {
+				disk.Status.State = "Detached"
+				if err := r.Status().Update(ctx, disk); err != nil {
+					log.Error(err, "unable to update Disk status")
+					return ctrl.Result{}, err
+				}
+			}
+
+			controllerutil.RemoveFinalizer(server, finalizerName)
+
+			if err := r.Update(ctx, server); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	running := *server.Spec.Running
+	isRunning := (server.Status.State == "Running" && running)
+	isStopped := (server.Status.State == "Stopped" && !running)
+	if isRunning || isStopped {
+		return ctrl.Result{}, nil
+	}
+
 	diskNsN := types.NamespacedName{
 		Namespace: server.Spec.Disk.Namespace,
 		Name:      server.Spec.Disk.Name,
@@ -79,9 +127,12 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Get the Disk.
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, diskNsN, disk); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
+		log.Error(err, "could not get disk")
+		/*
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+		*/
 		return ctrl.Result{}, err
 	}
 
@@ -116,7 +167,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
-					Hostname: server.Spec.HostName,
+					Hostname: server.Spec.Hostname,
 					Domain: kubevirtv1.DomainSpec{
 						CPU: &kubevirtv1.CPU{
 							Cores: uint32(server.Spec.CPU.Value()),
@@ -213,7 +264,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Spec.HostName + "." + externalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": server.Spec.Hostname + "." + externalDNSDomainName,
 	}
 
 	service := &corev1.Service{
@@ -234,7 +285,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	labels := map[string]string{
-		"vm.kubevirt.io/name": server.Spec.HostName,
+		"vm.kubevirt.io/name": server.Spec.Hostname,
 	}
 
 	service.Spec.Type = corev1.ServiceTypeLoadBalancer
@@ -274,27 +325,46 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	/*
+	if disk.Status.State == "Detached" {
 		disk.Status.State = "Attached"
 		if err := r.Status().Update(ctx, disk); err != nil {
 			log.Error(err, "unable to update Disk status")
 			return ctrl.Result{}, err
 		}
-	*/
-
-	if *server.Spec.Running {
-		server.Status.State = "Running"
-	} else {
-		server.Status.State = "Stopped"
 	}
 
+	createdVM := &kubevirtv1.VirtualMachine{}
+	if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	createdVMI := &kubevirtv1.VirtualMachineInstance{}
+	if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	server.Status.State = (string)(createdVM.Status.PrintableStatus)
 	server.Status.CPU = server.Spec.CPU.String()
 	server.Status.Memory = server.Spec.Memory.String()
-	server.Status.HostName = server.Spec.HostName
+	server.Status.Hostname = server.Spec.Hostname
 
-	if len(createdService.Status.LoadBalancer.Ingress) > 0 {
-		server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
+	/*
+		if len(createdService.Status.LoadBalancer.Ingress) > 0 {
+			server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
+		}
+	*/
+
+	if len(createdVMI.Status.Interfaces) > 0 {
+		server.Status.IP = createdVMI.Status.Interfaces[0].IP
 	}
+
+	server.Status.Hosting = createdVMI.Status.NodeName
 
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update Server status")

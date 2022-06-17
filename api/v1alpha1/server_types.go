@@ -24,11 +24,6 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-type CloudInitSource struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
 // ServerSpec defines the desired state of Server
 type ServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -43,11 +38,11 @@ type ServerSpec struct {
 	//+kubebuilder:validation:Required
 	MACAddress string `json:"macAddress"`
 	//+kubebuilder:validation:Required
-	HostName string `json:"hostname"`
+	Hostname string `json:"hostname"`
 	//+kubebuilder:validation:Required
-	Disk *DiskSourceDisk `json:"disk"`
+	Disk *AttachedDisk `json:"disk"`
 	//+kubebuilder:validation:Required
-	CloudInit *CloudInitSource `json:"cloudInit"`
+	CloudInit *AttachedCloudInit `json:"cloudInit"`
 }
 
 // ServerStatus defines the observed state of Server
@@ -58,16 +53,18 @@ type ServerStatus struct {
 	State    string `json:"state"`
 	CPU      string `json:"cpu"`
 	Memory   string `json:"memory"`
-	HostName string `json:"hostname"`
+	Hostname string `json:"hostname"`
 	IP       string `json:"ip"`
+	Hosting  string `json:"hosting"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description=""
 //+kubebuilder:printcolumn:name="CPU",type="string",JSONPath=".status.cpu",description=""
 //+kubebuilder:printcolumn:name="Memory",type="string",JSONPath=".status.memory",description=""
-//+kubebuilder:printcolumn:name="HostName",type="string",JSONPath=".status.hostname",description=""
+//+kubebuilder:printcolumn:name="Hostname",type="string",JSONPath=".status.hostname",description=""
 //+kubebuilder:printcolumn:name="IP",type="string",JSONPath=".status.ip",description=""
+//+kubebuilder:printcolumn:name="Hosting",type="string",JSONPath=".status.hosting",description=""
 //+kubebuilder:subresource:status
 
 // Server is the Schema for the servers API

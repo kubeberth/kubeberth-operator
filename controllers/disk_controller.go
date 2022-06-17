@@ -99,7 +99,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			disk.Status.Phase = "Expanding"
 		case cdiv1.Succeeded:
 			disk.Status.Phase = "Created"
-			//disk.Status.State = "Unattached"
+			disk.Status.State = "Detached"
 		case cdiv1.Failed:
 			disk.Status.Phase = "Failed"
 		case cdiv1.Unknown:
@@ -220,7 +220,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	disk.Status.Size = disk.Spec.Size
-	//disk.Status.State = "Preparing"
+	disk.Status.State = "Provisioning"
 	disk.Status.Phase = "Creating"
 
 	if err := r.Status().Update(ctx, disk); err != nil {

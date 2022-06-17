@@ -26,10 +26,13 @@ spec:
       name: Memory
       type: string
     - jsonPath: .status.hostname
-      name: HostName
+      name: Hostname
       type: string
     - jsonPath: .status.ip
       name: IP
+      type: string
+    - jsonPath: .status.hosting
+      name: Hosting
       type: string
     name: v1alpha1
     schema:
@@ -102,6 +105,8 @@ spec:
             properties:
               cpu:
                 type: string
+              hosting:
+                type: string
               hostname:
                 type: string
               ip:
@@ -112,6 +117,7 @@ spec:
                 type: string
             required:
             - cpu
+            - hosting
             - hostname
             - ip
             - memory

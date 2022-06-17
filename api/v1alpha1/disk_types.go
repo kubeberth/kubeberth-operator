@@ -20,19 +20,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type DiskSourceArchive struct {
+type AttachedArchive struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }
 
-type DiskSourceDisk struct {
+type AttachedDisk struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }
 
-type DiskSource struct {
-	Archive *DiskSourceArchive `json:"archive,omitempty"`
-	Disk    *DiskSourceDisk    `json:"disk,omitempty"`
+type AttachedSource struct {
+	Archive *AttachedArchive `json:"archive,omitempty"`
+	Disk    *AttachedDisk    `json:"disk,omitempty"`
 }
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -48,7 +48,7 @@ type DiskSpec struct {
 	Size string `json:"size"`
 
 	//+optional
-	Source *DiskSource `json:"source,omitempty"`
+	Source *AttachedSource `json:"source,omitempty"`
 }
 
 // DiskStatus defines the observed state of Disk
