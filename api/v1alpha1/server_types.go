@@ -24,11 +24,6 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-type CloudInitSource struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
 // ServerSpec defines the desired state of Server
 type ServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -45,9 +40,9 @@ type ServerSpec struct {
 	//+kubebuilder:validation:Required
 	Hostname string `json:"hostname"`
 	//+kubebuilder:validation:Required
-	Disk *DiskSourceDisk `json:"disk"`
+	Disk *AttachedDisk `json:"disk"`
 	//+kubebuilder:validation:Required
-	CloudInit *CloudInitSource `json:"cloudInit"`
+	CloudInit *AttachedCloudInit `json:"cloudInit"`
 }
 
 // ServerStatus defines the observed state of Server
