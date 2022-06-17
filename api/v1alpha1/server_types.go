@@ -43,7 +43,7 @@ type ServerSpec struct {
 	//+kubebuilder:validation:Required
 	MACAddress string `json:"macAddress"`
 	//+kubebuilder:validation:Required
-	HostName string `json:"hostname"`
+	Hostname string `json:"hostname"`
 	//+kubebuilder:validation:Required
 	Disk *DiskSourceDisk `json:"disk"`
 	//+kubebuilder:validation:Required
@@ -58,7 +58,7 @@ type ServerStatus struct {
 	State    string `json:"state"`
 	CPU      string `json:"cpu"`
 	Memory   string `json:"memory"`
-	HostName string `json:"hostname"`
+	Hostname string `json:"hostname"`
 	IP       string `json:"ip"`
 	Hosting  string `json:"hosting"`
 }
@@ -67,7 +67,7 @@ type ServerStatus struct {
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description=""
 //+kubebuilder:printcolumn:name="CPU",type="string",JSONPath=".status.cpu",description=""
 //+kubebuilder:printcolumn:name="Memory",type="string",JSONPath=".status.memory",description=""
-//+kubebuilder:printcolumn:name="HostName",type="string",JSONPath=".status.hostname",description=""
+//+kubebuilder:printcolumn:name="Hostname",type="string",JSONPath=".status.hostname",description=""
 //+kubebuilder:printcolumn:name="IP",type="string",JSONPath=".status.ip",description=""
 //+kubebuilder:printcolumn:name="Hosting",type="string",JSONPath=".status.hosting",description=""
 //+kubebuilder:subresource:status

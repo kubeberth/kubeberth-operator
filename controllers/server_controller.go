@@ -167,7 +167,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
-					Hostname: server.Spec.HostName,
+					Hostname: server.Spec.Hostname,
 					Domain: kubevirtv1.DomainSpec{
 						CPU: &kubevirtv1.CPU{
 							Cores: uint32(server.Spec.CPU.Value()),
@@ -264,7 +264,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Spec.HostName + "." + externalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": server.Spec.Hostname + "." + externalDNSDomainName,
 	}
 
 	service := &corev1.Service{
@@ -285,7 +285,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	labels := map[string]string{
-		"vm.kubevirt.io/name": server.Spec.HostName,
+		"vm.kubevirt.io/name": server.Spec.Hostname,
 	}
 
 	service.Spec.Type = corev1.ServiceTypeLoadBalancer
@@ -352,7 +352,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	server.Status.State = (string)(createdVM.Status.PrintableStatus)
 	server.Status.CPU = server.Spec.CPU.String()
 	server.Status.Memory = server.Spec.Memory.String()
-	server.Status.HostName = server.Spec.HostName
+	server.Status.Hostname = server.Spec.Hostname
 
 	/*
 		if len(createdService.Status.LoadBalancer.Ingress) > 0 {
