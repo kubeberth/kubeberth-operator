@@ -42,6 +42,14 @@ spec:
             type: object
           status:
             description: CloudInitStatus defines the observed state of CloudInit
+            properties:
+              networkData:
+                type: string
+              userData:
+                type: string
+            required:
+            - networkData
+            - userData
             type: object
         type: object
     served: true

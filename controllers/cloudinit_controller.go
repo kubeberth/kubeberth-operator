@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -50,9 +51,24 @@ type CloudInitReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *CloudInitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	//log := r.Log.WithValues("CloudInit", req.NamespacedName)
+	log := r.Log.WithValues("CloudInit", req.NamespacedName)
 
-	// TODO(user): your logic here
+	// Get the cloudinit.
+	cloudinit := &berthv1alpha1.CloudInit{}
+	if err := r.Get(ctx, req.NamespacedName, cloudinit); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	cloudinit.Status.UserData = cloudinit.Spec.UserData
+	cloudinit.Status.NetworkData = cloudinit.Spec.NetworkData
+
+	if err := r.Status().Update(ctx, cloudinit); err != nil {
+		log.Error(err, "unable to update CloudInit status")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

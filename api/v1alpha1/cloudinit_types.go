@@ -45,6 +45,9 @@ type CloudInitSpec struct {
 type CloudInitStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	UserData    string `json:"userData"`
+	NetworkData string `json:"networkData"`
 }
 
 //+kubebuilder:object:root=true
