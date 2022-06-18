@@ -20,11 +20,11 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 )
@@ -51,9 +51,23 @@ type ArchiveReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := r.Log.WithValues("Archive", req.NamespacedName)
 
-	// TODO(user): your logic here
+	// Get the archive.
+	archive := &berthv1alpha1.Archive{}
+	if err := r.Get(ctx, req.NamespacedName, archive); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	archive.Status.URL = archive.Spec.URL
+
+	if err := r.Status().Update(ctx, archive); err != nil {
+		log.Error(err, "unable to update Archive status")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

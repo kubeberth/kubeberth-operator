@@ -1,0 +1,7 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: Disk
+metadata:
+  name: emptydisk-sample
+  namespace: kubeberth
+spec:
+  size: 1Gi
