@@ -118,54 +118,54 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	datavolumeSource := &cdiv1.DataVolumeSource{}
 
-	if disk.Spec.Source.Archive != nil {
-		nsn := types.NamespacedName{
-			Namespace: disk.Spec.Source.Archive.Namespace,
-			Name:      disk.Spec.Source.Archive.Name,
-		}
-		// Get the Archive.
-		createdArchive := &berthv1alpha1.Archive{}
-		if err := r.Get(ctx, nsn, createdArchive); err != nil {
-			disk.Status.Size = disk.Spec.Size
-			disk.Status.Phase = "Failed"
+	if disk.Spec.Source == nil {
+		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
+	} else {
+		if disk.Spec.Source.Archive != nil {
+			nsn := types.NamespacedName{
+				Namespace: disk.Spec.Source.Archive.Namespace,
+				Name:      disk.Spec.Source.Archive.Name,
+			}
+			// Get the Archive.
+			createdArchive := &berthv1alpha1.Archive{}
+			if err := r.Get(ctx, nsn, createdArchive); err != nil {
+				disk.Status.Size = disk.Spec.Size
+				disk.Status.Phase = "Failed"
 
-			if err := r.Status().Update(ctx, disk); err != nil {
-				log.Error(err, "unable to update Disk status")
+				if err := r.Status().Update(ctx, disk); err != nil {
+					log.Error(err, "unable to update Disk status")
+					return ctrl.Result{}, err
+				}
+
+				if k8serrors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
 				return ctrl.Result{}, err
 			}
 
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
+			datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
+				URL: createdArchive.Spec.URL,
 			}
-			return ctrl.Result{}, err
-		}
 
-		datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
-			URL: createdArchive.Spec.URL,
-		}
-
-	} else if disk.Spec.Source.Disk != nil {
-		nsn := types.NamespacedName{
-			Namespace: disk.Spec.Source.Disk.Namespace,
-			Name:      disk.Spec.Source.Disk.Name,
-		}
-		// Get the source Disk
-		sourceDisk := &berthv1alpha1.Disk{}
-		if err := r.Get(ctx, nsn, sourceDisk); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
+		} else if disk.Spec.Source.Disk != nil {
+			nsn := types.NamespacedName{
+				Namespace: disk.Spec.Source.Disk.Namespace,
+				Name:      disk.Spec.Source.Disk.Name,
 			}
-			return ctrl.Result{}, err
-		}
+			// Get the source Disk
+			sourceDisk := &berthv1alpha1.Disk{}
+			if err := r.Get(ctx, nsn, sourceDisk); err != nil {
+				if k8serrors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
+				return ctrl.Result{}, err
+			}
 
-		datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
-			Namespace: disk.Spec.Source.Disk.Namespace,
-			Name:      disk.Spec.Source.Disk.Name,
+			datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
+				Namespace: disk.Spec.Source.Disk.Namespace,
+				Name:      disk.Spec.Source.Disk.Name,
+			}
 		}
-
-	} else {
-		log.Info("no SourceArchive")
-		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
 	}
 
 	kubeberthNsN := types.NamespacedName{
