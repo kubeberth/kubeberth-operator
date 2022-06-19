@@ -1,0 +1,55 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-berth-kubeberth-io-v1alpha1-disk
+  failurePolicy: Fail
+  name: mdisk.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - disks
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-berth-kubeberth-io-v1alpha1-disk
+  failurePolicy: Fail
+  name: vdisk.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - disks
+  sideEffects: None
