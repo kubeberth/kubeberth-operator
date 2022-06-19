@@ -74,6 +74,12 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
+	disk.Status.Size = disk.Spec.Size
+	if err := r.Status().Update(ctx, disk); err != nil {
+		log.Error(err, "unable to update Disk status")
+		return ctrl.Result{}, err
+	}
+
 	if disk.Status.Phase != "" {
 		// Get the DataVolume
 		createdDV := &cdiv1.DataVolume{}

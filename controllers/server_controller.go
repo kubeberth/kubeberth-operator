@@ -73,6 +73,14 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	server.Status.CPU = server.Spec.CPU.String()
+	server.Status.Memory = server.Spec.Memory.String()
+	server.Status.Hostname = server.Spec.Hostname
+	if err := r.Status().Update(ctx, server); err != nil {
+		log.Error(err, "unable to update Server status")
+		return ctrl.Result{}, err
+	}
+
 	finalizerName := "finalizers.servers.berth.kubeberth.io"
 
 	if server.ObjectMeta.DeletionTimestamp.IsZero() {
