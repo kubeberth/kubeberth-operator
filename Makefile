@@ -1,7 +1,7 @@
-# Image URL to use all building/pushing image targets
+# Image URL to use all building/pushing image targets)
 IMG ?= kubeberth/kubeberth-operator:v1alpha1
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.23
+ENVTEST_K8S_VERSION = 1.23.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -56,7 +56,9 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	USE_EXISTING_CLUSTER=false \
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" \
+	go test -v ./controllers/...  -coverprofile cover.out
 
 ##@ Build
 
@@ -70,15 +72,15 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t $(IMG) .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push $(IMG)
 
 .PHONY: docker-buildx
 docker-buildx:
-	docker buildx build --platform linux/amd64,linux/arm64 -t ${IMG} --push .
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMG) --push .
 
 ##@ Deployment
 
@@ -96,7 +98,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
