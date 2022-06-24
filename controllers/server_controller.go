@@ -165,8 +165,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 		}
-			return ctrl.Result{}, err
-		}
 	}
 
 	vm := &kubevirtv1.VirtualMachine{
