@@ -250,6 +250,28 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			nodeSelector = map[string]string{"kubernetes.io/hostname": server.Spec.Hosting}
 		}
 
+		var interfaces []kubevirtv1.Interface
+		if server.Spec.MACAddress != "" {
+			interfaces = []kubevirtv1.Interface{
+				kubevirtv1.Interface{
+					Name:       "default",
+					MacAddress: server.Spec.MACAddress,
+					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+						Bridge: &kubevirtv1.InterfaceBridge{},
+					},
+				},
+			}
+		} else {
+			interfaces = []kubevirtv1.Interface{
+				kubevirtv1.Interface{
+					Name: "default",
+					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+						Bridge: &kubevirtv1.InterfaceBridge{},
+					},
+				},
+			}
+		}
+
 		vm.Spec = kubevirtv1.VirtualMachineSpec{
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
@@ -264,16 +286,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							Requests: resourceRequest,
 						},
 						Devices: kubevirtv1.Devices{
-							Disks: deviceDisks,
-							Interfaces: []kubevirtv1.Interface{
-								kubevirtv1.Interface{
-									Name:       "default",
-									MacAddress: server.Spec.MACAddress,
-									InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-										Bridge: &kubevirtv1.InterfaceBridge{},
-									},
-								},
-							},
+							Disks:      deviceDisks,
+							Interfaces: interfaces,
 						},
 					},
 					Networks: []kubevirtv1.Network{

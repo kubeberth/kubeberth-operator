@@ -92,7 +92,6 @@ spec:
             - cpu
             - disk
             - hostname
-            - macAddress
             - memory
             type: object
           status:

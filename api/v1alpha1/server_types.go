@@ -35,7 +35,7 @@ type ServerSpec struct {
 	CPU *resource.Quantity `json:"cpu"`
 	//+kubebuilder:validation:Required
 	Memory *resource.Quantity `json:"memory"`
-	//+kubebuilder:validation:Required
+	//+optional
 	MACAddress string `json:"macAddress"`
 	//+kubebuilder:validation:Required
 	Hostname string `json:"hostname"`
