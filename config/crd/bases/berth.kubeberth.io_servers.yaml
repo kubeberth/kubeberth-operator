@@ -54,7 +54,7 @@ spec:
           spec:
             description: ServerSpec defines the desired state of Server
             properties:
-              cloudInit:
+              cloudinit:
                 properties:
                   name:
                     type: string
@@ -93,7 +93,6 @@ spec:
               running:
                 type: boolean
             required:
-            - cloudInit
             - cpu
             - disk
             - hostname

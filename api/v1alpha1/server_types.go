@@ -41,8 +41,8 @@ type ServerSpec struct {
 	Hostname string `json:"hostname"`
 	//+kubebuilder:validation:Required
 	Disk *AttachedDisk `json:"disk"`
-	//+kubebuilder:validation:Required
-	CloudInit *AttachedCloudInit `json:"cloudInit"`
+	//+optional
+	CloudInit *AttachedCloudInit `json:"cloudinit"`
 }
 
 // ServerStatus defines the observed state of Server

@@ -145,18 +145,21 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	cloudInitNsN := types.NamespacedName{
-		Namespace: server.Spec.CloudInit.Namespace,
-		Name:      server.Spec.CloudInit.Name,
-	}
-
-	// Get the CloudInit.
-	cloudInit := &berthv1alpha1.CloudInit{}
-	if err := r.Get(ctx, cloudInitNsN, cloudInit); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+	var cloudinit *berthv1alpha1.CloudInit
+	if server.Spec.CloudInit != nil {
+		cloudinitNsN := types.NamespacedName{
+			Namespace: server.Spec.CloudInit.Namespace,
+			Name:      server.Spec.CloudInit.Name,
 		}
-		return ctrl.Result{}, err
+
+		// Get the CloudInit.
+		cloudinit = &berthv1alpha1.CloudInit{}
+		if err := r.Get(ctx, cloudinitNsN, cloudinit); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
 	}
 
 	vm := &kubevirtv1.VirtualMachine{
@@ -170,7 +173,72 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		resourceRequest := corev1.ResourceList{}
 		resourceRequest[corev1.ResourceMemory] = resource.MustParse(server.Spec.Memory.String())
 		readOnly := true
-		userData := cloudInit.Spec.UserData
+
+		var deviceDisks []kubevirtv1.Disk
+		var volumes []kubevirtv1.Volume
+
+		if cloudinit != nil {
+			deviceDisks = []kubevirtv1.Disk{
+				kubevirtv1.Disk{
+					Name: server.Spec.Disk.Name + "-disk",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{
+							Bus: "virtio",
+						},
+					},
+				},
+				kubevirtv1.Disk{
+					Name: cloudinit.Name + "-cloudinit",
+					DiskDevice: kubevirtv1.DiskDevice{
+						CDRom: &kubevirtv1.CDRomTarget{
+							Bus:      "scsi",
+							ReadOnly: &readOnly,
+						},
+					},
+				},
+			}
+
+			volumes = []kubevirtv1.Volume{
+				kubevirtv1.Volume{
+					Name: server.Spec.Disk.Name + "-disk",
+					VolumeSource: kubevirtv1.VolumeSource{
+						DataVolume: &kubevirtv1.DataVolumeSource{
+							Name: server.Spec.Disk.Name,
+						},
+					},
+				},
+				kubevirtv1.Volume{
+					Name: cloudinit.Name + "-cloudinit",
+					VolumeSource: kubevirtv1.VolumeSource{
+						CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+							UserData: cloudinit.Spec.UserData,
+						},
+					},
+				},
+			}
+		} else {
+			deviceDisks = []kubevirtv1.Disk{
+				kubevirtv1.Disk{
+					Name: server.Spec.Disk.Name + "-disk",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{
+							Bus: "virtio",
+						},
+					},
+				},
+			}
+
+			volumes = []kubevirtv1.Volume{
+				kubevirtv1.Volume{
+					Name: server.Spec.Disk.Name + "-disk",
+					VolumeSource: kubevirtv1.VolumeSource{
+						DataVolume: &kubevirtv1.DataVolumeSource{
+							Name: server.Spec.Disk.Name,
+						},
+					},
+				},
+			}
+		}
 
 		vm.Spec = kubevirtv1.VirtualMachineSpec{
 			Running: server.Spec.Running,
@@ -185,25 +253,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							Requests: resourceRequest,
 						},
 						Devices: kubevirtv1.Devices{
-							Disks: []kubevirtv1.Disk{
-								kubevirtv1.Disk{
-									Name: server.Spec.Disk.Name + "-disk",
-									DiskDevice: kubevirtv1.DiskDevice{
-										Disk: &kubevirtv1.DiskTarget{
-											Bus: "virtio",
-										},
-									},
-								},
-								kubevirtv1.Disk{
-									Name: cloudInit.Name + "-cloudinit",
-									DiskDevice: kubevirtv1.DiskDevice{
-										CDRom: &kubevirtv1.CDRomTarget{
-											Bus:      "scsi",
-											ReadOnly: &readOnly,
-										},
-									},
-								},
-							},
+							Disks: deviceDisks,
 							Interfaces: []kubevirtv1.Interface{
 								kubevirtv1.Interface{
 									Name:       "default",
@@ -223,24 +273,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							},
 						},
 					},
-					Volumes: []kubevirtv1.Volume{
-						kubevirtv1.Volume{
-							Name: server.Spec.Disk.Name + "-disk",
-							VolumeSource: kubevirtv1.VolumeSource{
-								DataVolume: &kubevirtv1.DataVolumeSource{
-									Name: server.Spec.Disk.Name,
-								},
-							},
-						},
-						kubevirtv1.Volume{
-							Name: cloudInit.Name + "-cloudinit",
-							VolumeSource: kubevirtv1.VolumeSource{
-								CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-									UserData: userData,
-								},
-							},
-						},
-					},
+					Volumes: volumes,
 				},
 			},
 		}
