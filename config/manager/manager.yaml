@@ -33,6 +33,9 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        env:
+        - name: "ENABLE_WEBHOOKS"
+          value: "true"
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
