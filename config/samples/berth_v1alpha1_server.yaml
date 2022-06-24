@@ -11,7 +11,5 @@ spec:
   hostname: ubuntu-server
   disk:
     name: disk-sample
-    namespace: kubeberth
-  cloudInit:
+  cloudinit:
     name: cloudinit-sample
-    namespace: kubeberth

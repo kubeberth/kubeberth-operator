@@ -96,7 +96,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(server, finalizerName) {
 
 			diskNsN := types.NamespacedName{
-				Namespace: server.Spec.Disk.Namespace,
+				Namespace: server.Namespace,
 				Name:      server.Spec.Disk.Name,
 			}
 
@@ -129,7 +129,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	diskNsN := types.NamespacedName{
-		Namespace: server.Spec.Disk.Namespace,
+		Namespace: server.Namespace,
 		Name:      server.Spec.Disk.Name,
 	}
 
@@ -148,7 +148,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	var cloudinit *berthv1alpha1.CloudInit
 	if server.Spec.CloudInit != nil {
 		cloudinitNsN := types.NamespacedName{
-			Namespace: server.Spec.CloudInit.Namespace,
+			Namespace: server.Namespace,
 			Name:      server.Spec.CloudInit.Name,
 		}
 
