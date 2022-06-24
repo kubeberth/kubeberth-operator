@@ -74,6 +74,8 @@ spec:
                 required:
                 - name
                 type: object
+              hosting:
+                type: string
               hostname:
                 type: string
               macAddress:

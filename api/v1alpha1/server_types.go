@@ -39,6 +39,8 @@ type ServerSpec struct {
 	MACAddress string `json:"macAddress"`
 	//+kubebuilder:validation:Required
 	Hostname string `json:"hostname"`
+	//+optional
+	Hosting string `json:"hosting"`
 	//+kubebuilder:validation:Required
 	Disk *AttachedDisk `json:"disk"`
 	//+optional

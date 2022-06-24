@@ -245,11 +245,17 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
+		var nodeSelector map[string]string
+		if server.Spec.Hosting != "" {
+			nodeSelector = map[string]string{"kubernetes.io/hostname": server.Spec.Hosting}
+		}
+
 		vm.Spec = kubevirtv1.VirtualMachineSpec{
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
-					Hostname: server.Spec.Hostname,
+					NodeSelector: nodeSelector,
+					Hostname:     server.Spec.Hostname,
 					Domain: kubevirtv1.DomainSpec{
 						CPU: &kubevirtv1.CPU{
 							Cores: uint32(server.Spec.CPU.Value()),
