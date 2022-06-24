@@ -137,11 +137,13 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, diskNsN, disk); err != nil {
 		log.Error(err, "could not get disk")
-		/*
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-		*/
+
+		server.Status.State = "Error"
+		if err := r.Status().Update(ctx, server); err != nil {
+			log.Error(err, "unable to update Server status")
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, err
 	}
 
@@ -155,9 +157,14 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Get the CloudInit.
 		cloudinit = &berthv1alpha1.CloudInit{}
 		if err := r.Get(ctx, cloudinitNsN, cloudinit); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
+			log.Error(err, "could not get cloudinit")
+
+			server.Status.State = "Error"
+			if err := r.Status().Update(ctx, server); err != nil {
+				log.Error(err, "unable to update Server status")
+				return ctrl.Result{}, err
 			}
+		}
 			return ctrl.Result{}, err
 		}
 	}
