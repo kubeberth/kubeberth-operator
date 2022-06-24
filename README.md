@@ -29,7 +29,7 @@
 ```
 $ git clone https://github.com/kubeberth/kubeberth-operator.git
 $ cd kubeberth-operator
-$ make deploy
+$ make install && make deploy
 ```
 
 namespaceと設定のリソースを作成します。
