@@ -29,7 +29,7 @@
 ```
 $ git clone https://github.com/kubeberth/kubeberth-operator.git
 $ cd kubeberth-operator
-$ make install && make deploy
+$ make deploy
 ```
 
 namespaceと設定のリソースを作成します。
@@ -78,7 +78,7 @@ kubeberth   longhorn       kubeberth.k8s.arpa
 ### アーカイブ
 
 ```
-$ cat config/samples/berth_v1alpha1_archive.yaml 
+$ cat config/samples/berth_v1alpha1_archive.yaml
 apiVersion: berth.kubeberth.io/v1alpha1
 kind: Archive
 metadata:
@@ -95,7 +95,7 @@ spec:
 ### cloud-init
 
 ```
-$ cat config/samples/berth_v1alpha1_cloudinit.yaml 
+$ cat config/samples/berth_v1alpha1_cloudinit.yaml
 apiVersion: berth.kubeberth.io/v1alpha1
 kind: CloudInit
 metadata:
@@ -116,7 +116,7 @@ spec:
 ### ディスク
 
 ```
-$ cat config/samples/berth_v1alpha1_disk.yaml 
+$ cat config/samples/berth_v1alpha1_disk.yaml
 apiVersion: berth.kubeberth.io/v1alpha1
 kind: Disk
 metadata:
@@ -127,7 +127,6 @@ spec:
   source:
     archive:
       name: archive-sample
-      namespace: kubeberth
 ```
 
 
@@ -144,14 +143,13 @@ spec:
   running: true
   cpu: 2
   memory: 2Gi
-  macAddress: 52:42:00:c7:90:10
+  #macAddress: 52:42:00:c7:90:10   # optional
   hostname: ubuntu-server
+  #hostring: node-1.k8s.home.arpa  # optional
   disk:
     name: disk-sample
-    namespace: kubeberth
-  cloudInit:
+  cloudinit:
     name: cloudinit-sample
-    namespace: kubeberth
 ```
 
 
