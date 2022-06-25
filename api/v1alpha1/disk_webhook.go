@@ -76,6 +76,10 @@ func (r *Disk) ValidateDelete() error {
 	// TODO(user): fill in your validation logic upon object deletion.
 	var errs field.ErrorList
 
+	if r.Status.State == "" && r.Status.Phase == "" {
+		return nil
+	}
+
 	if r.Status.State != "Detached" && r.Status.Phase != "Failed" {
 		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Detached\""))
 		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
