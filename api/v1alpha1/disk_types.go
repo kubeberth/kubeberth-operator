@@ -21,13 +21,11 @@ import (
 )
 
 type AttachedArchive struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
+	Name string `json:"name"`
 }
 
 type AttachedDisk struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
+	Name string `json:"name"`
 }
 
 type AttachedSource struct {

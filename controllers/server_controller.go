@@ -96,7 +96,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(server, finalizerName) {
 
 			diskNsN := types.NamespacedName{
-				Namespace: server.Spec.Disk.Namespace,
+				Namespace: server.Namespace,
 				Name:      server.Spec.Disk.Name,
 			}
 
@@ -129,7 +129,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	diskNsN := types.NamespacedName{
-		Namespace: server.Spec.Disk.Namespace,
+		Namespace: server.Namespace,
 		Name:      server.Spec.Disk.Name,
 	}
 
@@ -137,26 +137,34 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, diskNsN, disk); err != nil {
 		log.Error(err, "could not get disk")
-		/*
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-		*/
-		return ctrl.Result{}, err
-	}
 
-	cloudInitNsN := types.NamespacedName{
-		Namespace: server.Spec.CloudInit.Namespace,
-		Name:      server.Spec.CloudInit.Name,
-	}
-
-	// Get the CloudInit.
-	cloudInit := &berthv1alpha1.CloudInit{}
-	if err := r.Get(ctx, cloudInitNsN, cloudInit); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+		server.Status.State = "Error"
+		if err := r.Status().Update(ctx, server); err != nil {
+			log.Error(err, "unable to update Server status")
+			return ctrl.Result{}, err
 		}
+
 		return ctrl.Result{}, err
+	}
+
+	var cloudinit *berthv1alpha1.CloudInit
+	if server.Spec.CloudInit != nil {
+		cloudinitNsN := types.NamespacedName{
+			Namespace: server.Namespace,
+			Name:      server.Spec.CloudInit.Name,
+		}
+
+		// Get the CloudInit.
+		cloudinit = &berthv1alpha1.CloudInit{}
+		if err := r.Get(ctx, cloudinitNsN, cloudinit); err != nil {
+			log.Error(err, "could not get cloudinit")
+
+			server.Status.State = "Error"
+			if err := r.Status().Update(ctx, server); err != nil {
+				log.Error(err, "unable to update Server status")
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	vm := &kubevirtv1.VirtualMachine{
@@ -170,13 +178,106 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		resourceRequest := corev1.ResourceList{}
 		resourceRequest[corev1.ResourceMemory] = resource.MustParse(server.Spec.Memory.String())
 		readOnly := true
-		userData := cloudInit.Spec.UserData
+
+		var deviceDisks []kubevirtv1.Disk
+		var volumes []kubevirtv1.Volume
+
+		if cloudinit != nil {
+			deviceDisks = []kubevirtv1.Disk{
+				kubevirtv1.Disk{
+					Name: server.Spec.Disk.Name + "-disk",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{
+							Bus: "virtio",
+						},
+					},
+				},
+				kubevirtv1.Disk{
+					Name: cloudinit.Name + "-cloudinit",
+					DiskDevice: kubevirtv1.DiskDevice{
+						CDRom: &kubevirtv1.CDRomTarget{
+							Bus:      "scsi",
+							ReadOnly: &readOnly,
+						},
+					},
+				},
+			}
+
+			volumes = []kubevirtv1.Volume{
+				kubevirtv1.Volume{
+					Name: server.Spec.Disk.Name + "-disk",
+					VolumeSource: kubevirtv1.VolumeSource{
+						DataVolume: &kubevirtv1.DataVolumeSource{
+							Name: server.Spec.Disk.Name,
+						},
+					},
+				},
+				kubevirtv1.Volume{
+					Name: cloudinit.Name + "-cloudinit",
+					VolumeSource: kubevirtv1.VolumeSource{
+						CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+							UserData: cloudinit.Spec.UserData,
+						},
+					},
+				},
+			}
+		} else {
+			deviceDisks = []kubevirtv1.Disk{
+				kubevirtv1.Disk{
+					Name: server.Spec.Disk.Name + "-disk",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{
+							Bus: "virtio",
+						},
+					},
+				},
+			}
+
+			volumes = []kubevirtv1.Volume{
+				kubevirtv1.Volume{
+					Name: server.Spec.Disk.Name + "-disk",
+					VolumeSource: kubevirtv1.VolumeSource{
+						DataVolume: &kubevirtv1.DataVolumeSource{
+							Name: server.Spec.Disk.Name,
+						},
+					},
+				},
+			}
+		}
+
+		var nodeSelector map[string]string
+		if server.Spec.Hosting != "" {
+			nodeSelector = map[string]string{"kubernetes.io/hostname": server.Spec.Hosting}
+		}
+
+		var interfaces []kubevirtv1.Interface
+		if server.Spec.MACAddress != "" {
+			interfaces = []kubevirtv1.Interface{
+				kubevirtv1.Interface{
+					Name:       "default",
+					MacAddress: server.Spec.MACAddress,
+					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+						Bridge: &kubevirtv1.InterfaceBridge{},
+					},
+				},
+			}
+		} else {
+			interfaces = []kubevirtv1.Interface{
+				kubevirtv1.Interface{
+					Name: "default",
+					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+						Bridge: &kubevirtv1.InterfaceBridge{},
+					},
+				},
+			}
+		}
 
 		vm.Spec = kubevirtv1.VirtualMachineSpec{
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
-					Hostname: server.Spec.Hostname,
+					NodeSelector: nodeSelector,
+					Hostname:     server.Spec.Hostname,
 					Domain: kubevirtv1.DomainSpec{
 						CPU: &kubevirtv1.CPU{
 							Cores: uint32(server.Spec.CPU.Value()),
@@ -185,34 +286,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							Requests: resourceRequest,
 						},
 						Devices: kubevirtv1.Devices{
-							Disks: []kubevirtv1.Disk{
-								kubevirtv1.Disk{
-									Name: server.Spec.Disk.Name + "-disk",
-									DiskDevice: kubevirtv1.DiskDevice{
-										Disk: &kubevirtv1.DiskTarget{
-											Bus: "virtio",
-										},
-									},
-								},
-								kubevirtv1.Disk{
-									Name: cloudInit.Name + "-cloudinit",
-									DiskDevice: kubevirtv1.DiskDevice{
-										CDRom: &kubevirtv1.CDRomTarget{
-											Bus:      "scsi",
-											ReadOnly: &readOnly,
-										},
-									},
-								},
-							},
-							Interfaces: []kubevirtv1.Interface{
-								kubevirtv1.Interface{
-									Name:       "default",
-									MacAddress: server.Spec.MACAddress,
-									InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-										Bridge: &kubevirtv1.InterfaceBridge{},
-									},
-								},
-							},
+							Disks:      deviceDisks,
+							Interfaces: interfaces,
 						},
 					},
 					Networks: []kubevirtv1.Network{
@@ -223,24 +298,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 							},
 						},
 					},
-					Volumes: []kubevirtv1.Volume{
-						kubevirtv1.Volume{
-							Name: server.Spec.Disk.Name + "-disk",
-							VolumeSource: kubevirtv1.VolumeSource{
-								DataVolume: &kubevirtv1.DataVolumeSource{
-									Name: server.Spec.Disk.Name,
-								},
-							},
-						},
-						kubevirtv1.Volume{
-							Name: cloudInit.Name + "-cloudinit",
-							VolumeSource: kubevirtv1.VolumeSource{
-								CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-									UserData: userData,
-								},
-							},
-						},
-					},
+					Volumes: volumes,
 				},
 			},
 		}

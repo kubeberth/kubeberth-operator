@@ -93,12 +93,10 @@ func newServer() *kubeberth.Server {
 			MACAddress: "52:42:00:00:00:00",
 			Hostname:   "test",
 			Disk: &kubeberth.AttachedDisk{
-				Namespace: "kubeberth-test",
-				Name:      "archive-test",
+				Name: "archive-test",
 			},
 			CloudInit: &kubeberth.AttachedCloudInit{
-				Namespace: "kubeberth-test",
-				Name:      "cloudinit-test",
+				Name: "cloudinit-test",
 			},
 		},
 	}

@@ -8,4 +8,3 @@ spec:
   source:
     archive:
       name: archive-sample
-      namespace: kubeberth

@@ -1,7 +1,8 @@
 # Image URL to use all building/pushing image targets)
-IMG ?= kubeberth/kubeberth-operator:v1alpha1
+IMG=kubeberth/kubeberth-operator:v1alpha1
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.23.1
+ENVTEST_K8S_VERSION=1.23.1
+ENABLE_WEBHOOKS=true
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -68,7 +69,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	ENABLE_WEBHOOKS=false go run ./main.go
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.

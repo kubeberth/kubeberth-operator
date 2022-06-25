@@ -35,14 +35,16 @@ type ServerSpec struct {
 	CPU *resource.Quantity `json:"cpu"`
 	//+kubebuilder:validation:Required
 	Memory *resource.Quantity `json:"memory"`
-	//+kubebuilder:validation:Required
+	//+optional
 	MACAddress string `json:"macAddress"`
 	//+kubebuilder:validation:Required
 	Hostname string `json:"hostname"`
+	//+optional
+	Hosting string `json:"hosting"`
 	//+kubebuilder:validation:Required
 	Disk *AttachedDisk `json:"disk"`
-	//+kubebuilder:validation:Required
-	CloudInit *AttachedCloudInit `json:"cloudInit"`
+	//+optional
+	CloudInit *AttachedCloudInit `json:"cloudinit"`
 }
 
 // ServerStatus defines the observed state of Server

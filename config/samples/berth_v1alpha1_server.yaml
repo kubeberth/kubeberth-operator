@@ -7,11 +7,10 @@ spec:
   running: true
   cpu: 2
   memory: 2Gi
-  macAddress: 52:42:00:c7:90:10
+  #macAddress: 52:42:00:c7:90:10   # optional
   hostname: ubuntu-server
+  #hostring: node-1.k8s.home.arpa  # optional
   disk:
     name: disk-sample
-    namespace: kubeberth
-  cloudInit:
+  cloudinit:
     name: cloudinit-sample
-    namespace: kubeberth

@@ -129,7 +129,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	} else {
 		if disk.Spec.Source.Archive != nil {
 			nsn := types.NamespacedName{
-				Namespace: disk.Spec.Source.Archive.Namespace,
+				Namespace: disk.Namespace,
 				Name:      disk.Spec.Source.Archive.Name,
 			}
 			// Get the Archive.
@@ -146,6 +146,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				if k8serrors.IsNotFound(err) {
 					return ctrl.Result{}, nil
 				}
+
 				return ctrl.Result{}, err
 			}
 
@@ -155,7 +156,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 		} else if disk.Spec.Source.Disk != nil {
 			nsn := types.NamespacedName{
-				Namespace: disk.Spec.Source.Disk.Namespace,
+				Namespace: disk.Namespace,
 				Name:      disk.Spec.Source.Disk.Name,
 			}
 			// Get the source Disk
@@ -168,7 +169,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			}
 
 			datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
-				Namespace: disk.Spec.Source.Disk.Namespace,
+				Namespace: disk.Namespace,
 				Name:      disk.Spec.Source.Disk.Name,
 			}
 		}

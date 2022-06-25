@@ -131,9 +131,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&berthv1alpha1.Disk{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Disk")
-		os.Exit(1)
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&berthv1alpha1.Disk{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Disk")
+			os.Exit(1)
+		}
+
+		if err = (&berthv1alpha1.Server{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Server")
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 

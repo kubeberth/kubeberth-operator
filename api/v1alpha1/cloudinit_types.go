@@ -26,8 +26,7 @@ import (
 // AttachedCloudInit will be used by Server Resource
 
 type AttachedCloudInit struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
+	Name string `json:"name"`
 }
 
 // CloudInitSpec defines the desired state of CloudInit

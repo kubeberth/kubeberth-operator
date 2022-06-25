@@ -54,15 +54,12 @@ spec:
           spec:
             description: ServerSpec defines the desired state of Server
             properties:
-              cloudInit:
+              cloudinit:
                 properties:
                   name:
                     type: string
-                  namespace:
-                    type: string
                 required:
                 - name
-                - namespace
                 type: object
               cpu:
                 anyOf:
@@ -74,12 +71,11 @@ spec:
                 properties:
                   name:
                     type: string
-                  namespace:
-                    type: string
                 required:
                 - name
-                - namespace
                 type: object
+              hosting:
+                type: string
               hostname:
                 type: string
               macAddress:
@@ -93,11 +89,9 @@ spec:
               running:
                 type: boolean
             required:
-            - cloudInit
             - cpu
             - disk
             - hostname
-            - macAddress
             - memory
             type: object
           status:

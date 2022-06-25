@@ -25,6 +25,26 @@ webhooks:
     resources:
     - disks
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-berth-kubeberth-io-v1alpha1-server
+  failurePolicy: Fail
+  name: mserver.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - servers
+  sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -52,4 +72,24 @@ webhooks:
     - DELETE
     resources:
     - disks
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-berth-kubeberth-io-v1alpha1-server
+  failurePolicy: Fail
+  name: vserver.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - servers
   sideEffects: None
