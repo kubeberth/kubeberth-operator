@@ -172,6 +172,8 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				Namespace: disk.Namespace,
 				Name:      disk.Spec.Source.Disk.Name,
 			}
+		} else {
+			datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
 		}
 	}
 
