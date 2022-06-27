@@ -4,4 +4,5 @@ metadata:
   name: emptydisk-sample
   namespace: kubeberth
 spec:
-  size: 1Gi
+  size: 16Gi
+  source: {}

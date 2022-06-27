@@ -48,6 +48,7 @@ type DiskReconciler struct {
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks/finalizers,verbs=update
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=archives,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -71,6 +72,72 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	if disk.Status.Phase == "Created" {
+		specSize := resource.MustParse(disk.Spec.Size)
+		statusSize := resource.MustParse(disk.Status.Size)
+
+		if (&specSize).Cmp(statusSize) > 0 {
+			disk.Status.Size = disk.Spec.Size
+			disk.Status.Phase = "Expanding"
+			disk.Status.State = "Resizing"
+			if err := r.Status().Update(ctx, disk); err != nil {
+				log.Error(err, "unable to update Disk status")
+				return ctrl.Result{}, err
+			}
+
+			pvcNsN := types.NamespacedName{
+				Namespace: disk.Namespace,
+				Name:      disk.Name,
+			}
+			createdPVC := &corev1.PersistentVolumeClaim{}
+			if err := r.Get(ctx, pvcNsN, createdPVC); err != nil {
+				if k8serrors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
+				return ctrl.Result{}, err
+			}
+
+			if _, err := ctrl.CreateOrUpdate(ctx, r.Client, createdPVC, func() error {
+				createdPVC.Spec.Resources = corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: specSize},
+				}
+				return nil
+			}); err != nil {
+				// error handling of ctrl.CreateOrUpdate
+				log.Error(err, "unable to update PVC")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	if disk.Status.Phase == "Expanding" {
+		pvcNsN := types.NamespacedName{
+			Namespace: disk.Namespace,
+			Name:      disk.Name,
+		}
+		createdPVC := &corev1.PersistentVolumeClaim{}
+		if err := r.Get(ctx, pvcNsN, createdPVC); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+
+		pvcSize := createdPVC.Status.Capacity[corev1.ResourceStorage]
+		diskSize := resource.MustParse(disk.Status.Size)
+
+		if (&diskSize).Cmp(pvcSize) == 0 {
+			disk.Status.Phase = "Created"
+			disk.Status.State = "Detached"
+			if err := r.Status().Update(ctx, disk); err != nil {
+				log.Error(err, "unable to update Disk status")
+				return ctrl.Result{}, err
+			}
+		}
+
 		return ctrl.Result{}, nil
 	}
 
