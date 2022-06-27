@@ -32,10 +32,10 @@ import (
 
 // log is for logging in this package.
 var serverlog = logf.Log.WithName("server-resource")
-var c client.Client
+var serverClient client.Client
 
 func (r *Server) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	c = mgr.GetClient()
+	serverClient = mgr.GetClient()
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -75,7 +75,7 @@ func (r *Server) ValidateCreate() error {
 
 		// Get the Disk.
 		disk := &Disk{}
-		if err := c.Get(ctx, diskNsN, disk); err != nil {
+		if err := serverClient.Get(ctx, diskNsN, disk); err != nil {
 			serverlog.Info("could not get disk", "name", r.Name)
 			errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), r.Spec.Disk.Name, "is not found"))
 		}
@@ -89,7 +89,7 @@ func (r *Server) ValidateCreate() error {
 
 		// Get the CloudInit.
 		cloudinit := &CloudInit{}
-		if err := c.Get(ctx, cloudinitNsN, cloudinit); err != nil {
+		if err := serverClient.Get(ctx, cloudinitNsN, cloudinit); err != nil {
 			serverlog.Info("could not get cloudinit", "name", r.Name)
 			errs = append(errs, field.Invalid(field.NewPath("spec", "cloudinit"), r.Spec.CloudInit.Name, "is not found"))
 		}
