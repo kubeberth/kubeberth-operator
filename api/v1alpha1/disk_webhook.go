@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -66,6 +67,23 @@ func (r *Disk) ValidateUpdate(old runtime.Object) error {
 	disklog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
+	var errs field.ErrorList
+	specSize := resource.MustParse(r.Spec.Size)
+	statusSize := resource.MustParse(r.Status.Size)
+
+	if (&statusSize).Cmp(specSize) > 0 {
+		errs = append(errs, field.Invalid(field.NewPath("state", "size"), r.Spec.Size, "must be more than "+r.Status.Size))
+	}
+
+	if r.Status.State != "Detached" {
+		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Detached\""))
+	}
+
+	if len(errs) > 0 {
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
+		return err
+	}
+
 	return nil
 }
 
@@ -78,6 +96,9 @@ func (r *Disk) ValidateDelete() error {
 
 	if r.Status.State == "Attached" {
 		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Detached\""))
+	}
+
+	if len(errs) > 0 {
 		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
 		return err
 	}
