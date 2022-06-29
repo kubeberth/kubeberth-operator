@@ -105,6 +105,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			err := r.Get(ctx, diskNsN, disk)
 			if err == nil {
 				disk.Status.State = "Detached"
+				disk.Status.AttachedTo = ""
 				if err := r.Status().Update(ctx, disk); err != nil {
 					log.Error(err, "unable to update Disk status")
 					return ctrl.Result{}, err
@@ -422,6 +423,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if disk.Status.State == "Detached" {
 		disk.Status.State = "Attached"
+		disk.Status.AttachedTo = server.Name
 		if err := r.Status().Update(ctx, disk); err != nil {
 			log.Error(err, "unable to update Disk status")
 			return ctrl.Result{}, err

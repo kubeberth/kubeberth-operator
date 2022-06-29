@@ -54,10 +54,11 @@ type DiskStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State    string `json:"state"`
-	Size     string `json:"size"`
-	Phase    string `json:"phase"`
-	Progress string `json:"progress"`
+	State      string `json:"state"`
+	Size       string `json:"size"`
+	Phase      string `json:"phase"`
+	Progress   string `json:"progress"`
+	AttachedTo string `json:"attachedTo"`
 }
 
 //+kubebuilder:object:root=true
@@ -65,6 +66,7 @@ type DiskStatus struct {
 //+kubebuilder:printcolumn:name="Size",type="string",JSONPath=".status.size",description=""
 //+kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description=""
 //+kubebuilder:printcolumn:name="Progress",type="string",JSONPath=".status.progress",description=""
+//+kubebuilder:printcolumn:name="AttachedTo",type="string",JSONPath=".status.attachedTo",description=""
 //+kubebuilder:subresource:status
 
 // Disk is the Schema for the disks API
