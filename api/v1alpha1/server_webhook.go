@@ -52,6 +52,10 @@ func (r *Server) Default() {
 	serverlog.Info("default", "name", r.Name)
 
 	// TODO(user): fill in your defaulting logic.
+	if r.Spec.Running == nil {
+		running := false
+		r.Spec.Running = &running
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.

@@ -72,7 +72,7 @@ func (r *Disk) ValidateUpdate(old runtime.Object) error {
 	statusSize := resource.MustParse(r.Status.Size)
 
 	if (&statusSize).Cmp(specSize) > 0 {
-		errs = append(errs, field.Invalid(field.NewPath("state", "size"), r.Spec.Size, "must be more than "+r.Status.Size))
+		errs = append(errs, field.Invalid(field.NewPath("state", "size"), r.Spec.Size, "must be larger than "+r.Status.Size))
 	}
 
 	if r.Status.State != "Detached" {
