@@ -147,6 +147,25 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if server.Status.State == "Running" && (server.Status.IP == "" || server.Status.Hosting == "") {
+		createdVMI := &kubevirtv1.VirtualMachineInstance{}
+		if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+
+		if len(createdVMI.Status.Interfaces) > 0 {
+			server.Status.IP = createdVMI.Status.Interfaces[0].IP
+		}
+		server.Status.Hosting = createdVMI.Status.NodeName
+		if err := r.Status().Update(ctx, server); err != nil {
+			log.Error(err, "unable to update Server status")
+			return ctrl.Result{}, err
+		}
+	}
+
 	running := *server.Spec.Running
 	isRunning := (server.Status.State == "Running" && running)
 	isStopped := (server.Status.State == "Stopped" && !running)
