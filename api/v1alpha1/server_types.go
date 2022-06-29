@@ -29,22 +29,22 @@ type ServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	//+kubebuilder:validation:Required
-	Running *bool `json:"running,omitempty" optional:"true"`
+	//+optional
+	Running *bool `json:"running"`
 	//+kubebuilder:validation:Required
 	CPU *resource.Quantity `json:"cpu"`
 	//+kubebuilder:validation:Required
 	Memory *resource.Quantity `json:"memory"`
 	//+optional
-	MACAddress string `json:"macAddress"`
+	MACAddress string `json:"macAddress,omitempty"`
 	//+kubebuilder:validation:Required
 	Hostname string `json:"hostname"`
 	//+optional
-	Hosting string `json:"hosting"`
+	Hosting string `json:"hosting,omitempty"`
 	//+kubebuilder:validation:Required
 	Disk *AttachedDisk `json:"disk"`
 	//+optional
-	CloudInit *AttachedCloudInit `json:"cloudinit"`
+	CloudInit *AttachedCloudInit `json:"cloudinit,omitempty"`
 }
 
 // ServerStatus defines the observed state of Server
