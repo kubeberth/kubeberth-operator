@@ -105,6 +105,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			err := r.Get(ctx, diskNsN, disk)
 			if err == nil {
 				disk.Status.State = "Detached"
+				disk.Status.AttachedTo = ""
 				if err := r.Status().Update(ctx, disk); err != nil {
 					log.Error(err, "unable to update Disk status")
 					return ctrl.Result{}, err
@@ -121,6 +122,50 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
+	if server.Status.State == "Initiating" {
+		createdVM := &kubevirtv1.VirtualMachine{}
+		if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+
+		if (string)(createdVM.Status.PrintableStatus) != "" {
+			server.Status.State = (string)(createdVM.Status.PrintableStatus)
+			if err := r.Status().Update(ctx, server); err != nil {
+				log.Error(err, "unable to update Server status")
+				return ctrl.Result{}, err
+			}
+		}
+	} else if server.Status.State == "Stopped" {
+		server.Status.IP = ""
+		server.Status.Hosting = ""
+		if err := r.Status().Update(ctx, server); err != nil {
+			log.Error(err, "unable to update Server status")
+			return ctrl.Result{}, err
+		}
+	}
+
+	if server.Status.State == "Running" && (server.Status.IP == "" || server.Status.Hosting == "") {
+		createdVMI := &kubevirtv1.VirtualMachineInstance{}
+		if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+
+		if len(createdVMI.Status.Interfaces) > 0 {
+			server.Status.IP = createdVMI.Status.Interfaces[0].IP
+		}
+		server.Status.Hosting = createdVMI.Status.NodeName
+		if err := r.Status().Update(ctx, server); err != nil {
+			log.Error(err, "unable to update Server status")
+			return ctrl.Result{}, err
+		}
+	}
+
 	running := *server.Spec.Running
 	isRunning := (server.Status.State == "Running" && running)
 	isStopped := (server.Status.State == "Stopped" && !running)
@@ -132,7 +177,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		Namespace: server.Namespace,
 		Name:      server.Spec.Disk.Name,
 	}
-
 	// Get the Disk.
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, diskNsN, disk); err != nil {
@@ -153,7 +197,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			Namespace: server.Namespace,
 			Name:      server.Spec.CloudInit.Name,
 		}
-
 		// Get the CloudInit.
 		cloudinit = &berthv1alpha1.CloudInit{}
 		if err := r.Get(ctx, cloudinitNsN, cloudinit); err != nil {
@@ -315,11 +358,16 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	server.Status.State = "Initiating"
+	if err := r.Status().Update(ctx, server); err != nil {
+		log.Error(err, "unable to update Server status")
+		return ctrl.Result{}, err
+	}
+
 	kubeberthNsN := types.NamespacedName{
 		Namespace: "kubeberth",
 		Name:      "kubeberth",
 	}
-
 	// Get the KubeBerth.
 	kubeberth := &berthv1alpha1.KubeBerth{}
 	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil {
@@ -394,6 +442,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if disk.Status.State == "Detached" {
 		disk.Status.State = "Attached"
+		disk.Status.AttachedTo = server.Name
 		if err := r.Status().Update(ctx, disk); err != nil {
 			log.Error(err, "unable to update Disk status")
 			return ctrl.Result{}, err
@@ -416,11 +465,6 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	server.Status.State = (string)(createdVM.Status.PrintableStatus)
-	server.Status.CPU = server.Spec.CPU.String()
-	server.Status.Memory = server.Spec.Memory.String()
-	server.Status.Hostname = server.Spec.Hostname
-
 	/*
 		if len(createdService.Status.LoadBalancer.Ingress) > 0 {
 			server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
@@ -430,8 +474,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if len(createdVMI.Status.Interfaces) > 0 {
 		server.Status.IP = createdVMI.Status.Interfaces[0].IP
 	}
-
 	server.Status.Hosting = createdVMI.Status.NodeName
+	server.Status.State = (string)(createdVM.Status.PrintableStatus)
 
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update Server status")
