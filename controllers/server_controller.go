@@ -122,7 +122,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	if server.Status.State == "Initiating" {
+	if server.Status.State == "Processing" {
 		createdVM := &kubevirtv1.VirtualMachine{}
 		if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -138,6 +138,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 		}
+
+		return ctrl.Result{}, nil
 	} else if server.Status.State == "Stopped" {
 		server.Status.IP = ""
 		server.Status.Hosting = ""
@@ -145,6 +147,24 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			log.Error(err, "unable to update Server status")
 			return ctrl.Result{}, err
 		}
+	} else if server.Status.State == "Starting" || server.Status.State == "Stopping" {
+		createdVM := &kubevirtv1.VirtualMachine{}
+		if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+
+		if (string)(createdVM.Status.PrintableStatus) != "" {
+			server.Status.State = (string)(createdVM.Status.PrintableStatus)
+			if err := r.Status().Update(ctx, server); err != nil {
+				log.Error(err, "unable to update Server status")
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	if server.Status.State == "Running" && (server.Status.IP == "" || server.Status.Hosting == "") {
@@ -358,7 +378,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	server.Status.State = "Initiating"
+	server.Status.State = "Processing"
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update Server status")
 		return ctrl.Result{}, err
