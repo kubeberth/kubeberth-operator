@@ -218,7 +218,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			}
 
 			datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
-				URL: createdArchive.Spec.URL,
+				URL: createdArchive.Spec.Repository,
 			}
 
 		} else if disk.Spec.Source.Disk != nil {

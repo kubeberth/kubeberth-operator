@@ -62,11 +62,13 @@ func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	archive.Status.URL = archive.Spec.URL
-
-	if err := r.Status().Update(ctx, archive); err != nil {
-		log.Error(err, "unable to update Archive status")
-		return ctrl.Result{}, err
+	if archive.Spec.Repository != "" {
+		archive.Status.State = "Created"
+		archive.Status.Repository = archive.Spec.Repository
+		if err := r.Status().Update(ctx, archive); err != nil {
+			log.Error(err, "unable to update Archive status")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

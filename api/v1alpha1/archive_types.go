@@ -28,9 +28,11 @@ type ArchiveSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:Format=string
-	URL string `json:"url"`
+	//+optional
+	Repository string `json:"repository,omitempty"`
+
+	//+optional
+	Source *AttachedSource `json:"source,omitempty"`
 }
 
 // ArchiveStatus defines the observed state of Archive
@@ -38,10 +40,13 @@ type ArchiveStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	URL string `json:"url"`
+	State      string `json:"state"`
+	Repository string `json:"repository"`
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description=""
+//+kubebuilder:printcolumn:name="Repository",type="string",JSONPath=".status.repository",description=""
 //+kubebuilder:subresource:status
 
 // Archive is the Schema for the archives API

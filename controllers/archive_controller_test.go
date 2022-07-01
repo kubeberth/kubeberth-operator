@@ -32,15 +32,15 @@ var _ = Describe("Archive controller", func() {
 			Eventually(func() error {
 				return k8sClient.Get(ctx, archiveLookupKey, createdArchive)
 			}).Should(Succeed())
-			Expect(createdArchive.Spec.URL).Should(Equal("test"))
+			Expect(createdArchive.Spec.Repository).Should(Equal("test"))
 
 			By("By checking the Archive has Status.URL")
 			Consistently(func() (string, error) {
 				err := k8sClient.Get(ctx, archiveLookupKey, createdArchive)
-				if err != nil || createdArchive.Status.URL == "" {
+				if err != nil || createdArchive.Status.Repository == "" {
 					return "getting error", err
 				}
-				return createdArchive.Status.URL, nil
+				return createdArchive.Status.Repository, nil
 			}, duration, interval).Should(Equal("test"))
 		})
 	})
@@ -57,7 +57,7 @@ func newArchive() *kubeberth.Archive {
 			Namespace: "kubeberth-test",
 		},
 		Spec: kubeberth.ArchiveSpec{
-			URL: "test",
+			Repository: "test",
 		},
 	}
 }
