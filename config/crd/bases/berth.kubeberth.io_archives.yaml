@@ -15,7 +15,14 @@ spec:
     singular: archive
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .status.repository
+      name: Repository
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Archive is the Schema for the archives API
@@ -35,19 +42,36 @@ spec:
           spec:
             description: ArchiveSpec defines the desired state of Archive
             properties:
-              url:
-                format: string
+              repository:
                 type: string
-            required:
-            - url
+              source:
+                properties:
+                  archive:
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  disk:
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                type: object
             type: object
           status:
             description: ArchiveStatus defines the observed state of Archive
             properties:
-              url:
+              repository:
+                type: string
+              state:
                 type: string
             required:
-            - url
+            - repository
+            - state
             type: object
         type: object
     served: true

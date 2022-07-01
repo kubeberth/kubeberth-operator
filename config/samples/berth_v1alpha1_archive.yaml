@@ -5,6 +5,6 @@ metadata:
   namespace: kubeberth
 spec:
   # Local ISO Image Repository
-  url: "http://minio.home.arpa:9000/kubevirt/images/ubuntu-20.04-server-cloudimg-arm64.img"
+  repository: "http://minio.home.arpa:9000/kubevirt/images/ubuntu-20.04-server-cloudimg-arm64.img"
   # Public ISO Image Repository
-  # url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img"
+  # repository: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img"
