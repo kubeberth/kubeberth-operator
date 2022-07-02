@@ -211,6 +211,33 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	if server.Status.AttachedDisk != "" && (server.Status.AttachedDisk != disk.Name) {
+		attachedDiskNsN := types.NamespacedName{
+			Namespace: server.Namespace,
+			Name:      server.Status.AttachedDisk,
+		}
+
+		attachedDisk := &berthv1alpha1.Disk{}
+		if err := r.Get(ctx, attachedDiskNsN, attachedDisk); err != nil {
+			log.Error(err, "could not get disk")
+
+			server.Status.State = "Error"
+			if err := r.Status().Update(ctx, server); err != nil {
+				log.Error(err, "unable to update Server status")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, err
+		}
+
+		attachedDisk.Status.State = "Detached"
+		attachedDisk.Status.AttachedTo = ""
+		if err := r.Status().Update(ctx, attachedDisk); err != nil {
+			log.Error(err, "unable to update Disk status")
+			return ctrl.Result{}, err
+		}
+	}
+
 	var cloudinit *berthv1alpha1.CloudInit
 	if server.Spec.CloudInit != nil {
 		cloudinitNsN := types.NamespacedName{
@@ -464,6 +491,12 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		disk.Status.State = "Attached"
 		disk.Status.AttachedTo = server.Name
 		if err := r.Status().Update(ctx, disk); err != nil {
+			log.Error(err, "unable to update Disk status")
+			return ctrl.Result{}, err
+		}
+
+		server.Status.AttachedDisk = disk.Name
+		if err := r.Status().Update(ctx, server); err != nil {
 			log.Error(err, "unable to update Disk status")
 			return ctrl.Result{}, err
 		}

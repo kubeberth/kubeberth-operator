@@ -52,12 +52,13 @@ type ServerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State    string `json:"state"`
-	CPU      string `json:"cpu"`
-	Memory   string `json:"memory"`
-	Hostname string `json:"hostname"`
-	IP       string `json:"ip"`
-	Hosting  string `json:"hosting"`
+	State        string `json:"state"`
+	CPU          string `json:"cpu"`
+	Memory       string `json:"memory"`
+	Hostname     string `json:"hostname"`
+	IP           string `json:"ip"`
+	Hosting      string `json:"hosting"`
+	AttachedDisk string `json:"attachedDisk"`
 }
 
 //+kubebuilder:object:root=true
