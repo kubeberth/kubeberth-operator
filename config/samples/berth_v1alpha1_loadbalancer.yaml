@@ -1,0 +1,13 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: LoadBalancer
+metadata:
+  name: loadbalancer-sample
+spec:
+  servers:
+  - server: web-a
+  - server: web-b
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
