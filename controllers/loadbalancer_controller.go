@@ -71,7 +71,8 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if loadbalancer.Status.State != "Created" {
+	if loadbalancer.Status.State != "" {
+		var statusServers []berthv1alpha1.ToServer
 		for i := 0; i < len(loadbalancer.Spec.Servers); i++ {
 			toServer := &berthv1alpha1.Server{}
 			toServerNsN := types.NamespacedName{
@@ -84,6 +85,13 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				}
 				return ctrl.Result{}, err
 			}
+
+			statusServers = append(statusServers, berthv1alpha1.ToServer{Server: toServer.Name})
+		}
+		copy(loadbalancer.Status.Servers, statusServers)
+		if err := r.Status().Update(ctx, loadbalancer); err != nil {
+			log.Error(err, "unable to update LoadBalancer status")
+			return ctrl.Result{}, err
 		}
 
 		kubeberthNsN := types.NamespacedName{
@@ -158,7 +166,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				}
 			*/
 		}
-		loadbalancer.Status.Pods = statusPods
+		copy(loadbalancer.Status.Pods, statusPods)
 		if err := r.Status().Update(ctx, loadbalancer); err != nil {
 			log.Error(err, "unable to update LoadBalancer status")
 			return ctrl.Result{}, err

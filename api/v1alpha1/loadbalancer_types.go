@@ -49,9 +49,10 @@ type LoadBalancerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State string  `json:"state"`
-	IP    string  `json:"IP"`
-	Pods  []ToPod `json:"pods"`
+	State   string     `json:"state"`
+	IP      string     `json:"IP"`
+	Servers []ToServer `json:"servers"`
+	Pods    []ToPod    `json:"pods"`
 
 	//TODO
 	Health string `json:"health"`
