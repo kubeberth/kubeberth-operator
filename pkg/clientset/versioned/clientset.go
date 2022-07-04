@@ -5,6 +5,7 @@ import (
 	archives "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
 	cloudinits "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
 	disks "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
+	loadbalancers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/loadbalancers/v1alpha1"
 	servers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
@@ -18,16 +19,18 @@ type Interface interface {
 	CloudInits() cloudinits.CloudInitsInterface
 	Disks() disks.DisksInterface
 	Servers() servers.ServersInterface
+	LoadBalancers() loadbalancers.LoadBalancersInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	archives   *archives.ArchivesClient
-	cloudinits *cloudinits.CloudInitsClient
-	disks      *disks.DisksClient
-	servers    *servers.ServersClient
+	archives      *archives.ArchivesClient
+	cloudinits    *cloudinits.CloudInitsClient
+	disks         *disks.DisksClient
+	servers       *servers.ServersClient
+	loadbalancers *loadbalancers.LoadBalancersClient
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -52,6 +55,10 @@ func (c *Clientset) Disks() disks.DisksInterface {
 
 func (c *Clientset) Servers() servers.ServersInterface {
 	return c.servers
+}
+
+func (c *Clientset) LoadBalancers() loadbalancers.LoadBalancersInterface {
+	return c.loadbalancers
 }
 
 // NewForConfig creates a new Clientset for the given config.
@@ -94,6 +101,11 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 
+	cs.loadbalancers, err = loadbalancers.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+
 	return &cs, nil
 }
 
@@ -106,6 +118,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.cloudinits = cloudinits.NewForConfigOrDie(c)
 	cs.disks = disks.NewForConfigOrDie(c)
 	cs.servers = servers.NewForConfigOrDie(c)
+	cs.loadbalancers = loadbalancers.NewForConfigOrDie(c)
 
 	return &cs
 }
@@ -118,6 +131,7 @@ func New(c rest.Interface) *Clientset {
 	cs.cloudinits = cloudinits.New(c)
 	cs.disks = disks.New(c)
 	cs.servers = servers.New(c)
+	cs.loadbalancers = loadbalancers.New(c)
 
 	return &cs
 }

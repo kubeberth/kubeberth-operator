@@ -20,6 +20,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - create
@@ -129,6 +141,32 @@ rules:
   - berth.kubeberth.io
   resources:
   - kubeberths/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - loadbalancers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - loadbalancers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - loadbalancers/status
   verbs:
   - get
   - patch

@@ -57,4 +57,13 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubeberth.io
+  group: berth
+  kind: LoadBalancer
+  path: github.com/kubeberth/kubeberth-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

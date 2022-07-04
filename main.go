@@ -131,6 +131,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controllers.LoadBalancerReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("LoadBalancer"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "LoadBalancer")
+		os.Exit(1)
+	}
+
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err = (&berthv1alpha1.Disk{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Disk")
@@ -142,6 +151,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

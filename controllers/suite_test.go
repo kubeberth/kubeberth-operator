@@ -37,6 +37,7 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
+	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 	kubeberth "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
@@ -78,6 +79,9 @@ var _ = BeforeSuite(func() {
 	Expect(kubevirtv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(cdiv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(kubeberth.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+
+	err = berthv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
