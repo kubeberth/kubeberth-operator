@@ -111,10 +111,10 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 		}
 
 		for _, pod := range pods.Items {
-			newPod := pod.DeepCopy()
-			delete(newPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
+			copiedPod := pod.DeepCopy()
+			delete(copiedPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
 			patch := client.MergeFrom(&pod)
-			if err := r.Patch(ctx, newPod, patch); err != nil {
+			if err := r.Patch(ctx, copiedPod, patch); err != nil {
 				return err
 			}
 		}
@@ -183,10 +183,10 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 
 		for _, pod := range pods.Items {
 			if _, ok := pod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()]; !ok {
-				newPod := pod.DeepCopy()
-				newPod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()] = loadbalancer.GetName()
+				copiedPod := pod.DeepCopy()
+				copiedPod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()] = loadbalancer.GetName()
 				patch := client.MergeFrom(&pod)
-				if err := r.Patch(ctx, newPod, patch); err != nil {
+				if err := r.Patch(ctx, copiedPod, patch); err != nil {
 					return err
 				}
 			}
@@ -263,22 +263,26 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 		return err
 	}
 
-	destinations := []berthv1alpha1.Destination{}
-	for i := 0; i < len(loadbalancer.Spec.Backends); i++ {
-		server := &berthv1alpha1.Server{}
-		serverNsN := types.NamespacedName{
-			Namespace: loadbalancer.GetNamespace(),
-			Name:      loadbalancer.Spec.Backends[i].Server,
+	// TODO: Implementation for Validating Admission Webhook
+	/*
+		destinations := []berthv1alpha1.Destination{}
+		for _, destination := range loadbalancer.Spec.Backends {
+			server := &berthv1alpha1.Server{}
+			serverNsN := types.NamespacedName{
+				Namespace: loadbalancer.GetNamespace(),
+				Name:      destination.Server,
+			}
+			if err := r.Get(ctx, serverNsN, server); err != nil && !k8serrors.IsNotFound(err) {
+				return err
+			}
+			destinations = append(destinations, berthv1alpha1.Destination{Server: server.GetName()})
 		}
-		if err := r.Get(ctx, serverNsN, server); err != nil && !k8serrors.IsNotFound(err) {
-			return err
-		}
-		destinations = append(destinations, berthv1alpha1.Destination{Server: server.GetName()})
-	}
+	*/
 	copiedLB := loadbalancer.DeepCopy()
 	copiedLB.Status.State = "Creating"
 	copiedLB.Status.IP = "None"
-	copiedLB.Status.Backends = destinations
+	//copiedLB.Status.Backends = destinations
+	copiedLB.Status.Backends = loadbalancer.Spec.Backends
 	copiedLB.Status.Health = "Unhealthy"
 	patch := client.MergeFrom(loadbalancer)
 	if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
@@ -309,10 +313,10 @@ func (r *LoadBalancerReconciler) handleFinalizer(ctx context.Context, loadbalanc
 				return false, err
 			}
 			for _, pod := range pods.Items {
-				newPod := pod.DeepCopy()
-				delete(newPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
+				copiedPod := pod.DeepCopy()
+				delete(copiedPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
 				patch := client.MergeFrom(&pod)
-				if err := r.Patch(ctx, newPod, patch); err != nil {
+				if err := r.Patch(ctx, copiedPod, patch); err != nil {
 					return false, err
 				}
 			}
