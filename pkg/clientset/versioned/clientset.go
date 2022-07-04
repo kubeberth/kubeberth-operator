@@ -5,8 +5,8 @@ import (
 	archives "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
 	cloudinits "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
 	disks "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
-	servers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 	loadbalancers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/loadbalancers/v1alpha1"
+	servers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -14,11 +14,11 @@ import (
 )
 
 type Interface interface {
-	Discovery()     discovery.DiscoveryInterface
-	Archives()      archives.ArchivesInterface
-	CloudInits()    cloudinits.CloudInitsInterface
-	Disks()         disks.DisksInterface
-	Servers()       servers.ServersInterface
+	Discovery() discovery.DiscoveryInterface
+	Archives() archives.ArchivesInterface
+	CloudInits() cloudinits.CloudInitsInterface
+	Disks() disks.DisksInterface
+	Servers() servers.ServersInterface
 	LoadBalancers() loadbalancers.LoadBalancersInterface
 }
 
@@ -30,7 +30,7 @@ type Clientset struct {
 	cloudinits    *cloudinits.CloudInitsClient
 	disks         *disks.DisksClient
 	servers       *servers.ServersClient
-	loadbalancers *loadbalancers.LoadBalancerClient
+	loadbalancers *loadbalancers.LoadBalancersClient
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -60,6 +60,7 @@ func (c *Clientset) Servers() servers.ServersInterface {
 func (c *Clientset) LoadBalancers() loadbalancers.LoadBalancersInterface {
 	return c.loadbalancers
 }
+
 // NewForConfig creates a new Clientset for the given config.
 // If config's RateLimiter is not set and QPS and Burst are acceptable,
 // NewForConfig will generate a rate-limiter in configShallowCopy.
@@ -113,11 +114,11 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
-	cs.archives        = archives.NewForConfigOrDie(c)
-	cs.cloudinits      = cloudinits.NewForConfigOrDie(c)
-	cs.disks           = disks.NewForConfigOrDie(c)
-	cs.servers         = servers.NewForConfigOrDie(c)
-	cs.loadbalancers   = loadbalancers.NewForConfigOrDie(c)
+	cs.archives = archives.NewForConfigOrDie(c)
+	cs.cloudinits = cloudinits.NewForConfigOrDie(c)
+	cs.disks = disks.NewForConfigOrDie(c)
+	cs.servers = servers.NewForConfigOrDie(c)
+	cs.loadbalancers = loadbalancers.NewForConfigOrDie(c)
 
 	return &cs
 }
