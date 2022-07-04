@@ -45,6 +45,15 @@ spec:
           spec:
             description: LoadBalancerSpec defines the desired state of LoadBalancer
             properties:
+              backends:
+                items:
+                  properties:
+                    server:
+                      type: string
+                  required:
+                  - server
+                  type: object
+                type: array
               ports:
                 items:
                   description: ServicePort contains information on service's port.
@@ -101,7 +110,14 @@ spec:
                   - port
                   type: object
                 type: array
-              servers:
+            required:
+            - backends
+            - ports
+            type: object
+          status:
+            description: LoadBalancerStatus defines the observed state of LoadBalancer
+            properties:
+              backends:
                 items:
                   properties:
                     server:
@@ -110,33 +126,16 @@ spec:
                   - server
                   type: object
                 type: array
-            required:
-            - ports
-            - servers
-            type: object
-          status:
-            description: LoadBalancerStatus defines the observed state of LoadBalancer
-            properties:
-              IP:
-                type: string
               health:
-                description: TODO
                 type: string
-              pods:
-                items:
-                  properties:
-                    pod:
-                      type: string
-                  required:
-                  - pod
-                  type: object
-                type: array
+              ip:
+                type: string
               state:
                 type: string
             required:
-            - IP
+            - backends
             - health
-            - pods
+            - ip
             - state
             type: object
         type: object

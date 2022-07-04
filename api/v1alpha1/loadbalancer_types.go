@@ -21,11 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ToPod struct {
-	Pod string `json:"pod"`
-}
-
-type ToServer struct {
+type Destination struct {
 	Server string `json:"server"`
 }
 
@@ -38,7 +34,7 @@ type LoadBalancerSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	//+kubebuilder:validation:Required
-	Servers []ToServer `json:"servers"`
+	Backends []Destination `json:"backends"`
 
 	//+kubebuilder:validation:Required
 	Ports []corev1.ServicePort `json:"ports"`
@@ -49,13 +45,10 @@ type LoadBalancerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State   string     `json:"state"`
-	IP      string     `json:"IP"`
-	Servers []ToServer `json:"servers"`
-	Pods    []ToPod    `json:"pods"`
-
-	//TODO
-	Health string `json:"health"`
+	State    string        `json:"state"`
+	IP       string        `json:"ip"`
+	Backends []Destination `json:"backends"`
+	Health   string        `json:"health"`
 }
 
 //+kubebuilder:object:root=true

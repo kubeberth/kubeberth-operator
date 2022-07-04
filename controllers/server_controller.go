@@ -365,6 +365,11 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		vm.Spec = kubevirtv1.VirtualMachineSpec{
 			Running: server.Spec.Running,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"berth.kubeberth.io/server": server.GetName(),
+					},
+				},
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
 					NodeSelector: nodeSelector,
 					Hostname:     server.Spec.Hostname,
@@ -447,7 +452,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	labels := map[string]string{
-		"vm.kubevirt.io/name": server.Spec.Hostname,
+		"berth.kubeberth.io/server": server.GetName(),
 	}
 
 	service.Spec.Type = corev1.ServiceTypeLoadBalancer

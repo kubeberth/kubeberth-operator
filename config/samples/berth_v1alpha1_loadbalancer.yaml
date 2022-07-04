@@ -3,7 +3,7 @@ kind: LoadBalancer
 metadata:
   name: loadbalancer-sample
 spec:
-  servers:
+  backends:
   - server: web-a
   - server: web-b
   ports:
