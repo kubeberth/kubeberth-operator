@@ -4,8 +4,7 @@ metadata:
   name: loadbalancer-sample
 spec:
   backends:
-  - server: web-a
-  - server: web-b
+  - server: server-sample
   ports:
   - name: http
     protocol: TCP

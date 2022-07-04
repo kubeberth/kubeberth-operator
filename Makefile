@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets)
-IMG=kubeberth/kubeberth-operator:test
+IMG=kubeberth/kubeberth-operator:v1alpha1
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION=1.23.1
 ENABLE_WEBHOOKS=true
