@@ -146,7 +146,7 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 	if loadbalancer.Status.IP == "None" {
 		service := &corev1.Service{}
 		nsn := types.NamespacedName{
-			Namespace: loadbalancer.GetNamespace(),
+			Namespace: loadbalancer.GetNamespace()+"-loadbalancer",
 			Name:      loadbalancer.GetName(),
 		}
 		if err := r.Get(ctx, nsn, service); err != nil && !k8serrors.IsNotFound(err) {
@@ -246,7 +246,7 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 
 	service := &corev1.Service{}
 	service.SetNamespace(loadbalancer.GetNamespace())
-	service.SetName(loadbalancer.GetName())
+	service.SetName(loadbalancer.GetName()+"-loadbalancer")
 	service.SetAnnotations(annotations)
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
 		servicePort := loadbalancer.Spec.Ports
