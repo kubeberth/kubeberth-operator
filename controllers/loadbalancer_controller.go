@@ -195,6 +195,7 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 
 	if health {
 		copiedLB := loadbalancer.DeepCopy()
+		copiedLB.Status.State = "Created"
 		copiedLB.Status.Health = "Healthy"
 		patch := client.MergeFrom(loadbalancer)
 		if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
@@ -202,6 +203,7 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 		}
 	} else {
 		copiedLB := loadbalancer.DeepCopy()
+		copiedLB.Status.State = "Created"
 		copiedLB.Status.Health = "Unhealthy"
 		patch := client.MergeFrom(loadbalancer)
 		if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
