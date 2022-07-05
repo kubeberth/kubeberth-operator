@@ -225,7 +225,7 @@ func (r *LoadBalancerReconciler) checkServiceExists(ctx context.Context, nsn typ
 func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadbalancer *berthv1alpha1.LoadBalancer) error {
 	nsn := types.NamespacedName{
 		Namespace: loadbalancer.GetNamespace(),
-		Name:      loadbalancer.GetName(),
+		Name:      loadbalancer.GetName() + "-loadbalancer",
 	}
 	if ok := r.checkServiceExists(ctx, nsn); ok {
 		return nil
