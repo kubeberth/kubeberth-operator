@@ -150,6 +150,11 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Server")
 			os.Exit(1)
 		}
+
+		if err = (&berthv1alpha1.LoadBalancer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "LoadBalancer")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
