@@ -265,25 +265,9 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 		return err
 	}
 
-	// TODO: Implementation for Validating Admission Webhook
-	/*
-		destinations := []berthv1alpha1.Destination{}
-		for _, destination := range loadbalancer.Spec.Backends {
-			server := &berthv1alpha1.Server{}
-			serverNsN := types.NamespacedName{
-				Namespace: loadbalancer.GetNamespace(),
-				Name:      destination.Server,
-			}
-			if err := r.Get(ctx, serverNsN, server); err != nil && !k8serrors.IsNotFound(err) {
-				return err
-			}
-			destinations = append(destinations, berthv1alpha1.Destination{Server: server.GetName()})
-		}
-	*/
 	copiedLB := loadbalancer.DeepCopy()
 	copiedLB.Status.State = "Creating"
 	copiedLB.Status.IP = "None"
-	//copiedLB.Status.Backends = destinations
 	copiedLB.Status.Backends = loadbalancer.Spec.Backends
 	copiedLB.Status.Health = "Unhealthy"
 	patch := client.MergeFrom(loadbalancer)
