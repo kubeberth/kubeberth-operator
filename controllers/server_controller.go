@@ -436,7 +436,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        server.Name,
+			Name:        server.Name + "-server",
 			Namespace:   server.Namespace,
 			Annotations: annotations,
 		},
@@ -482,7 +482,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	createdService := &corev1.Service{}
 	serviceNsN := types.NamespacedName{
 		Namespace: server.Namespace,
-		Name:      server.Name,
+		Name:      server.Name + "-server",
 	}
 
 	if err := r.Get(ctx, serviceNsN, createdService); err != nil {
