@@ -84,7 +84,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if err := r.ensureServiceExists(ctx, loadbalancer); err != nil {
-		log.Error(err, "failed to do ensureServiceCreated")
+		log.Error(err, "failed to do ensureServiceExists")
 		return ctrl.Result{Requeue: true}, err
 	}
 
