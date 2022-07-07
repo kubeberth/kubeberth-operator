@@ -13,3 +13,8 @@ spec:
     disable_root: false
     #ssh_authorized_keys:
     #- ssh-rsa XXXXXXXXXXXXXXXXXXXXXXXXX
+    package_update: true
+    packages:
+    - nginx
+    runcmd:
+    - hostname > /var/www/html/index.html

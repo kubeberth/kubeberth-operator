@@ -111,7 +111,6 @@ spec:
                   type: object
                 type: array
             required:
-            - backends
             - ports
             type: object
           status:
@@ -133,7 +132,6 @@ spec:
               state:
                 type: string
             required:
-            - backends
             - health
             - ip
             - state

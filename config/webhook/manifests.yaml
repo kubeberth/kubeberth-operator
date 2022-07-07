@@ -110,6 +110,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - loadbalancers
   sideEffects: None
@@ -130,6 +131,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - servers
   sideEffects: None

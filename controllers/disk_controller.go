@@ -18,17 +18,18 @@ package controllers
 
 import (
 	"context"
+	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/go-logr/logr"
 
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
@@ -42,6 +43,10 @@ type DiskReconciler struct {
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 }
+
+const (
+	diskRequeueAfter = time.Second * 3
+)
 
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks/status,verbs=get;update;patch
@@ -65,212 +70,193 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	// Get the Disk.
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, req.NamespacedName, disk); err != nil {
+		log.Error(err, "cloud not get the Disk resource")
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	if disk.Status.Phase == "Created" {
-		specSize := resource.MustParse(disk.Spec.Size)
-		statusSize := resource.MustParse(disk.Status.Size)
-
-		if (&specSize).Cmp(statusSize) > 0 {
-			disk.Status.Size = disk.Spec.Size
-			disk.Status.Phase = "Expanding"
-			disk.Status.State = "Resizing"
-			if err := r.Status().Update(ctx, disk); err != nil {
-				log.Error(err, "unable to update Disk status")
-				return ctrl.Result{}, err
-			}
-
-			pvcNsN := types.NamespacedName{
-				Namespace: disk.Namespace,
-				Name:      disk.Name,
-			}
-			createdPVC := &corev1.PersistentVolumeClaim{}
-			if err := r.Get(ctx, pvcNsN, createdPVC); err != nil {
-				if k8serrors.IsNotFound(err) {
-					return ctrl.Result{}, nil
-				}
-				return ctrl.Result{}, err
-			}
-
-			if _, err := ctrl.CreateOrUpdate(ctx, r.Client, createdPVC, func() error {
-				createdPVC.Spec.Resources = corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: specSize},
-				}
-				return nil
-			}); err != nil {
-				// error handling of ctrl.CreateOrUpdate
-				log.Error(err, "unable to update PVC")
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, nil
+	if err := r.ensureDataVolumeExists(ctx, disk); err != nil {
+		log.Error(err, "failed to do ensureDataVolumeExists")
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	if disk.Status.Phase == "Expanding" {
+	if ensuring, err := r.ensureDiskExists(ctx, disk); err != nil {
+		log.Error(err, "failed to do ensureDiskExists")
+		return ctrl.Result{Requeue: true}, err
+	} else if ensuring {
+		return ctrl.Result{Requeue: true, RequeueAfter: diskRequeueAfter}, nil
+	}
+
+	if expanding, err := r.isDiskExpanding(ctx, disk); err != nil {
+		log.Error(err, "failed to do ensureDiskExpanding")
+		return ctrl.Result{Requeue: true}, err
+	} else if expanding {
+		return ctrl.Result{Requeue: true, RequeueAfter: diskRequeueAfter}, nil
+	}
+
+	return ctrl.Result{Requeue: false}, nil
+}
+
+func (r *DiskReconciler) isDiskExpanding(ctx context.Context, disk *berthv1alpha1.Disk) (bool, error) {
+	log := r.Log.WithValues("ensureDiskExpanding", disk.GetName())
+
+	specSize := resource.MustParse(disk.Spec.Size)
+	statusSize := resource.MustParse(disk.Status.Size)
+
+	if (&specSize).Cmp(statusSize) > 0 {
+		pvc := &corev1.PersistentVolumeClaim{}
+		pvc.SetNamespace(disk.GetNamespace())
+		pvc.SetName(disk.GetName())
+		if _, err := ctrl.CreateOrUpdate(ctx, r.Client, pvc, func() error {
+			pvc.Spec.Resources = corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceStorage: specSize},
+			}
+			return nil
+		}); err != nil {
+			log.Error(err, "unable to update the PVC")
+			return true, err
+		}
+
+		disk.Status.Size = disk.Spec.Size
+		disk.Status.State = "Resizing"
+		disk.Status.Phase = "Expanding"
+		if err := r.Status().Update(ctx, disk); err != nil {
+			log.Error(err, "unable to update a status of the Disk")
+			return true, err
+		}
+
+		return true, nil
+	} else if disk.Status.State == "Resizing" {
+		pvc := &corev1.PersistentVolumeClaim{}
 		pvcNsN := types.NamespacedName{
-			Namespace: disk.Namespace,
-			Name:      disk.Name,
+			Namespace: disk.GetNamespace(),
+			Name:      disk.GetName(),
 		}
-		createdPVC := &corev1.PersistentVolumeClaim{}
-		if err := r.Get(ctx, pvcNsN, createdPVC); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
+		if err := r.Get(ctx, pvcNsN, pvc); err != nil {
+			return true, err
 		}
 
-		pvcSize := createdPVC.Status.Capacity[corev1.ResourceStorage]
+		pvcSize := pvc.Status.Capacity[corev1.ResourceStorage]
 		diskSize := resource.MustParse(disk.Status.Size)
 
-		if (&diskSize).Cmp(pvcSize) == 0 {
-			disk.Status.Phase = "Created"
-			disk.Status.State = "Detached"
-			if err := r.Status().Update(ctx, disk); err != nil {
-				log.Error(err, "unable to update Disk status")
-				return ctrl.Result{}, err
-			}
+		if (&diskSize).Cmp(pvcSize) != 0 {
+			return true, nil
 		}
 
-		return ctrl.Result{}, nil
+		disk.Status.State = "Detached"
+		disk.Status.Phase = "Created"
+		if err := r.Status().Update(ctx, disk); err != nil {
+			log.Error(err, "unable to update a status of the Disk")
+			return true, err
+		}
+		return false, nil
+	} else {
+		return false, nil
+	}
+}
+
+func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alpha1.Disk) (ensuring bool, err error) {
+	log := r.Log.WithValues("ensureDiskExists", disk.GetName())
+
+	if disk.Status.State == "Resizing" || disk.Status.Phase == "Created" {
+		return false, nil
+	}
+
+	datavolume := &cdiv1.DataVolume{}
+	nsn := types.NamespacedName{
+		Namespace: disk.GetNamespace(),
+		Name:      disk.GetName(),
+	}
+	if err := r.Get(ctx, nsn, datavolume); err != nil {
+		return true, err
+	}
+
+	disk.Status.State = "Provisioning"
+	switch datavolume.Status.Phase {
+	case cdiv1.Pending:
+		disk.Status.Phase = "Pending"
+	case cdiv1.PVCBound:
+		disk.Status.Phase = "PVCBound"
+	case cdiv1.ImportScheduled:
+		disk.Status.Phase = "Scheduled"
+	case cdiv1.ImportInProgress, cdiv1.CloneInProgress:
+		disk.Status.Phase = "Creating"
+	case cdiv1.ExpansionInProgress:
+		disk.Status.Phase = "Expanding"
+	case cdiv1.Succeeded:
+		disk.Status.Phase = "Created"
+		disk.Status.State = "Detached"
+	case cdiv1.Failed:
+		disk.Status.Phase = "Failed"
+	case cdiv1.Unknown:
+		disk.Status.Phase = "Unknown"
+	case cdiv1.Paused:
+		disk.Status.Phase = "Paused"
+	}
+
+	disk.Status.Progress = string(datavolume.Status.Progress)
+	if err := r.Status().Update(ctx, disk); err != nil {
+		log.Error(err, "unable to update a status of the Disk")
+		return true, err
+	}
+
+	return true, nil
+}
+
+func (r *DiskReconciler) ensureDataVolumeExists(ctx context.Context, disk *berthv1alpha1.Disk) error {
+	log := r.Log.WithValues("ensureDataVolumeExists", disk.GetName())
+
+	datavolume := &cdiv1.DataVolume{}
+	nsn := types.NamespacedName{
+		Namespace: disk.GetNamespace(),
+		Name:      disk.GetName(),
+	}
+	if err := r.Get(ctx, nsn, datavolume); err == nil {
+		return nil
+	}
+
+	if err := r.createDataVolume(ctx, disk); err != nil {
+		return err
 	}
 
 	disk.Status.Size = disk.Spec.Size
+	disk.Status.State = "Provisioning"
 	if err := r.Status().Update(ctx, disk); err != nil {
-		log.Error(err, "unable to update Disk status")
-		return ctrl.Result{}, err
+		log.Error(err, "unable to update a status of the Disk")
+		return err
 	}
 
-	if disk.Status.Phase != "" {
-		// Get the DataVolume
-		createdDV := &cdiv1.DataVolume{}
-		if err := r.Get(ctx, req.NamespacedName, createdDV); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
+	return nil
+}
 
-		disk.Status.Progress = string(createdDV.Status.Progress)
+func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alpha1.Disk) error {
+	log := r.Log.WithValues("createDataVolume", disk.GetName())
 
-		switch createdDV.Status.Phase {
-		case cdiv1.Pending:
-			disk.Status.Phase = "Pending"
-		case cdiv1.PVCBound:
-			disk.Status.Phase = "PVCBound"
-		case cdiv1.ImportScheduled:
-			disk.Status.Phase = "Scheduled"
-		case cdiv1.ImportInProgress, cdiv1.CloneInProgress:
-			disk.Status.Phase = "Creating"
-		case cdiv1.ExpansionInProgress:
-			disk.Status.Phase = "Expanding"
-		case cdiv1.Succeeded:
-			disk.Status.Phase = "Created"
-			disk.Status.State = "Detached"
-		case cdiv1.Failed:
-			disk.Status.Phase = "Failed"
-		case cdiv1.Unknown:
-			disk.Status.Phase = "Unknown"
-		case cdiv1.Paused:
-			disk.Status.Phase = "Paused"
-		}
-
-		if err := r.Status().Update(ctx, disk); err != nil {
-			log.Error(err, "unable to update Disk status")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{}, nil
+	datavolumeSource, err := r.createDataVolumeSource(ctx, disk)
+	if err != nil {
+		return err
 	}
 
-	datavolumeSource := &cdiv1.DataVolumeSource{}
-
-	if disk.Spec.Source == nil {
-		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
-	} else {
-		if disk.Spec.Source.Archive != nil {
-			nsn := types.NamespacedName{
-				Namespace: disk.Namespace,
-				Name:      disk.Spec.Source.Archive.Name,
-			}
-			// Get the Archive.
-			createdArchive := &berthv1alpha1.Archive{}
-			if err := r.Get(ctx, nsn, createdArchive); err != nil {
-				disk.Status.Size = disk.Spec.Size
-				disk.Status.Phase = "Failed"
-
-				if err := r.Status().Update(ctx, disk); err != nil {
-					log.Error(err, "unable to update Disk status")
-					return ctrl.Result{}, err
-				}
-
-				if k8serrors.IsNotFound(err) {
-					return ctrl.Result{}, nil
-				}
-
-				return ctrl.Result{}, err
-			}
-
-			datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
-				URL: createdArchive.Spec.Repository,
-			}
-
-		} else if disk.Spec.Source.Disk != nil {
-			nsn := types.NamespacedName{
-				Namespace: disk.Namespace,
-				Name:      disk.Spec.Source.Disk.Name,
-			}
-			// Get the source Disk
-			sourceDisk := &berthv1alpha1.Disk{}
-			if err := r.Get(ctx, nsn, sourceDisk); err != nil {
-				if k8serrors.IsNotFound(err) {
-					return ctrl.Result{}, nil
-				}
-				return ctrl.Result{}, err
-			}
-
-			datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
-				Namespace: disk.Namespace,
-				Name:      disk.Spec.Source.Disk.Name,
-			}
-		} else {
-			datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
-		}
-	}
-
+	kubeberth := &berthv1alpha1.KubeBerth{}
 	kubeberthNsN := types.NamespacedName{
 		Namespace: "kubeberth",
 		Name:      "kubeberth",
 	}
-
-	// Get the KubeBerth.
-	kubeberth := &berthv1alpha1.KubeBerth{}
 	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return err
 	}
 
 	storageClassName := kubeberth.Spec.StorageClassName
 	volumeMode := corev1.PersistentVolumeBlock
-
 	resourceRequest := corev1.ResourceList{}
 	resourceRequest[corev1.ResourceStorage] = resource.MustParse(disk.Spec.Size)
-
-	// Create the DataVolume.
-	datavolume := &cdiv1.DataVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      disk.Name,
-			Namespace: disk.Namespace,
-		},
-		Spec: cdiv1.DataVolumeSpec{
+	datavolume := &cdiv1.DataVolume{}
+	datavolume.SetNamespace(disk.GetNamespace())
+	datavolume.SetName(disk.GetName())
+	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, datavolume, func() error {
+		spec := cdiv1.DataVolumeSpec{
 			Source: datavolumeSource,
 			PVC: &corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -280,31 +266,60 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				StorageClassName: &storageClassName,
 				VolumeMode:       &volumeMode,
 			},
-		},
-	}
-
-	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, datavolume, func() error {
+		}
+		datavolume.Spec = spec
 		if err := ctrl.SetControllerReference(disk, datavolume, r.Scheme); err != nil {
-			log.Error(err, "unable to set controlerReference from Disk to DataVolume")
+			log.Error(err, "unable to set controlerReference from the Disk to the DataVolume")
 			return err
 		}
+
 		return nil
 	}); err != nil {
-		// error handling of ctrl.CreateOrUpdate
-		log.Error(err, "unable to ensure DataVolume is correct")
-		return ctrl.Result{}, err
+		log.Error(err, "unable to ensure the DataVolume is correct")
+		return err
 	}
 
-	disk.Status.Size = disk.Spec.Size
-	disk.Status.State = "Provisioning"
-	disk.Status.Phase = "Creating"
+	return nil
+}
 
-	if err := r.Status().Update(ctx, disk); err != nil {
-		log.Error(err, "unable to update Disk status")
-		return ctrl.Result{}, err
+func (r *DiskReconciler) createDataVolumeSource(ctx context.Context, disk *berthv1alpha1.Disk) (*cdiv1.DataVolumeSource, error) {
+	datavolumeSource := &cdiv1.DataVolumeSource{}
+
+	if disk.Spec.Source == nil {
+		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
+	} else if disk.Spec.Source.Archive != nil {
+		sourceArchive := &berthv1alpha1.Archive{}
+		nsn := types.NamespacedName{
+			Namespace: disk.GetNamespace(),
+			Name:      disk.Spec.Source.Archive.Name,
+		}
+		if err := r.Get(ctx, nsn, sourceArchive); err != nil {
+			return nil, err
+		}
+
+		datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
+			URL: sourceArchive.Spec.Repository,
+		}
+
+	} else if disk.Spec.Source.Disk != nil {
+		sourceDisk := &berthv1alpha1.Disk{}
+		nsn := types.NamespacedName{
+			Namespace: disk.GetNamespace(),
+			Name:      disk.Spec.Source.Disk.Name,
+		}
+		if err := r.Get(ctx, nsn, sourceDisk); err != nil {
+			return nil, err
+		}
+
+		datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
+			Namespace: disk.GetNamespace(),
+			Name:      disk.Spec.Source.Disk.Name,
+		}
+	} else {
+		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
 	}
 
-	return ctrl.Result{}, nil
+	return datavolumeSource, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

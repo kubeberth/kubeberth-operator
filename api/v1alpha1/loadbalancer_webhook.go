@@ -55,7 +55,7 @@ func (r *LoadBalancer) Default() {
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-loadbalancer,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=loadbalancers,verbs=create;update,versions=v1alpha1,name=vloadbalancer.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-loadbalancer,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=loadbalancers,verbs=create;update;delete,versions=v1alpha1,name=vloadbalancer.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &LoadBalancer{}
 
@@ -66,6 +66,10 @@ func (r *LoadBalancer) ValidateCreate() error {
 	// TODO(user): fill in your validation logic upon object creation.
 	var errs field.ErrorList
 	ctx := context.Background()
+
+	if r.Spec.Backends == nil {
+		return nil
+	}
 
 	destinations := []Destination{}
 	for _, destination := range r.Spec.Backends {
@@ -95,6 +99,10 @@ func (r *LoadBalancer) ValidateUpdate(old runtime.Object) error {
 	// TODO(user): fill in your validation logic upon object update.
 	var errs field.ErrorList
 	ctx := context.Background()
+
+	if r.Spec.Backends == nil {
+		return nil
+	}
 
 	destinations := []Destination{}
 	for _, destination := range r.Spec.Backends {

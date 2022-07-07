@@ -59,7 +59,7 @@ func (r *Server) Default() {
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-server,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=servers,verbs=create;update,versions=v1alpha1,name=vserver.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-server,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=servers,verbs=create;update;delete,versions=v1alpha1,name=vserver.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Server{}
 
@@ -72,28 +72,28 @@ func (r *Server) ValidateCreate() error {
 	ctx := context.Background()
 
 	if r.Spec.Disk != nil {
-		diskNsN := types.NamespacedName{
+		disk := &Disk{}
+		nsn := types.NamespacedName{
 			Namespace: r.Namespace,
 			Name:      r.Spec.Disk.Name,
 		}
-
-		// Get the Disk.
-		disk := &Disk{}
-		if err := serverClient.Get(ctx, diskNsN, disk); err != nil {
+		if err := serverClient.Get(ctx, nsn, disk); err != nil {
 			serverlog.Info("could not get disk", "name", r.Name)
 			errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), r.Spec.Disk.Name, "is not found"))
+		} else {
+			if disk.Status.State != "Detached" {
+				errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), disk.Status.State, "state must be \"Detached\""))
+			}
 		}
 	}
 
 	if r.Spec.CloudInit != nil {
-		cloudinitNsN := types.NamespacedName{
+		cloudinit := &CloudInit{}
+		nsn := types.NamespacedName{
 			Namespace: r.Namespace,
 			Name:      r.Spec.CloudInit.Name,
 		}
-
-		// Get the CloudInit.
-		cloudinit := &CloudInit{}
-		if err := serverClient.Get(ctx, cloudinitNsN, cloudinit); err != nil {
+		if err := serverClient.Get(ctx, nsn, cloudinit); err != nil {
 			serverlog.Info("could not get cloudinit", "name", r.Name)
 			errs = append(errs, field.Invalid(field.NewPath("spec", "cloudinit"), r.Spec.CloudInit.Name, "is not found"))
 		}
@@ -112,6 +112,48 @@ func (r *Server) ValidateUpdate(old runtime.Object) error {
 	serverlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
+	var errs field.ErrorList
+	ctx := context.Background()
+
+	if r.Status.State == "Running" && *r.Spec.Running {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "running"), r.Status.State, "cloud not update a status of the state when the state is \"Running\" state"))
+	}
+
+	if r.Spec.Disk != nil {
+		if r.Spec.Disk.Name != r.Status.AttachedDisk {
+			disk := &Disk{}
+			nsn := types.NamespacedName{
+				Namespace: r.Namespace,
+				Name:      r.Spec.Disk.Name,
+			}
+			if err := serverClient.Get(ctx, nsn, disk); err != nil {
+				serverlog.Info("could not get disk", "name", r.Spec.Disk.Name)
+				errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), r.Spec.Disk.Name, "is not found"))
+			} else {
+				if disk.Status.State != "Detached" {
+					errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), disk.Status.State, "state must be \"Detached\""))
+				}
+			}
+		}
+	}
+
+	if r.Spec.CloudInit != nil {
+		cloudinit := &CloudInit{}
+		nsn := types.NamespacedName{
+			Namespace: r.Namespace,
+			Name:      r.Spec.CloudInit.Name,
+		}
+		if err := serverClient.Get(ctx, nsn, cloudinit); err != nil {
+			serverlog.Info("could not get cloudinit", "name", r.Spec.CloudInit.Name)
+			errs = append(errs, field.Invalid(field.NewPath("spec", "cloudinit"), r.Spec.CloudInit.Name, "is not found"))
+		}
+	}
+
+	if len(errs) > 0 {
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Server"}, r.Name, errs)
+		return err
+	}
+
 	return nil
 }
 
@@ -120,5 +162,16 @@ func (r *Server) ValidateDelete() error {
 	serverlog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
+	var errs field.ErrorList
+
+	if r.Status.State != "Stopped" {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "running"), r.Status.State, "cloud not delete the Server when a status of the state is \"Stopped\""))
+	}
+
+	if len(errs) > 0 {
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Server"}, r.Name, errs)
+		return err
+	}
+
 	return nil
 }
