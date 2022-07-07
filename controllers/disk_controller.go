@@ -70,7 +70,7 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	// Get the Disk.
 	disk := &berthv1alpha1.Disk{}
 	if err := r.Get(ctx, req.NamespacedName, disk); err != nil {
-		log.Error(err, "cloud not get the Disk resource")
+		log.Error(err, "could not get the Disk resource")
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: false}, nil
 		}

@@ -56,7 +56,7 @@ func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Get the archive.
 	archive := &berthv1alpha1.Archive{}
 	if err := r.Get(ctx, req.NamespacedName, archive); err != nil {
-		log.Error(err, "cloud not get the Archive resource")
+		log.Error(err, "could not get the Archive resource")
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: false}, nil
 		}

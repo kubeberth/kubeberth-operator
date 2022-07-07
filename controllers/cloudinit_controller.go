@@ -56,7 +56,7 @@ func (r *CloudInitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Get the cloudinit.
 	cloudinit := &berthv1alpha1.CloudInit{}
 	if err := r.Get(ctx, req.NamespacedName, cloudinit); err != nil {
-		log.Error(err, "cloud not get the CloudInit resource")
+		log.Error(err, "could not get the CloudInit resource")
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: false}, nil
 		}

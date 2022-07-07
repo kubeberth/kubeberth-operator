@@ -72,7 +72,7 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Get the LoadBalancer.
 	loadbalancer := &berthv1alpha1.LoadBalancer{}
 	if err := r.Get(ctx, req.NamespacedName, loadbalancer); err != nil {
-		log.Error(err, "cloud not get the LoadBalancer resource")
+		log.Error(err, "could not get the LoadBalancer resource")
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: false}, nil
 		}
