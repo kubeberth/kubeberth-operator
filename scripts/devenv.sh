@@ -36,17 +36,6 @@ function install_kind {
     echo "Done!"
 }
 
-function install_clusterctl {
-    local VERSION="v1.1.4"
-    local FILENAME="clusterctl-${OS}-$ARCH"
-    local DOWNLOAD_URL="https://github.com/kubernetes-sigs/cluster-api/releases/download/$VERSION/$FILENAME"
-    echo -n "Install clusterctl $VERSION ... "
-    curl -sL -o clusterctl "$DOWNLOAD_URL"
-    chmod +x ./clusterctl
-    mv ./clusterctl tools
-    echo "Done!"
-}
-
 function install_kustomize {
     local VERSION="v4.5.2"
     local TARNAME="kustomize_${VERSION}_${OS}_${ARCH}.tar.gz"
@@ -64,7 +53,6 @@ mkdir -p tools
 install_kubectl
 install_kubebuilder
 install_kind
-install_clusterctl
 install_kustomize
 echo
 echo "ALL DONE!"
