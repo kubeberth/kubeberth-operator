@@ -53,28 +53,23 @@ type KubeBerthReconciler struct {
 func (r *KubeBerthReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("KubeBerth", req.NamespacedName)
 
-	// Get the KubeBerth.
 	kubeberth := &berthv1alpha1.KubeBerth{}
 	if err := r.Get(ctx, req.NamespacedName, kubeberth); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	if kubeberth.Status.StorageClass != "" {
-		return ctrl.Result{}, nil
-	}
-
+	kubeberth.Status.VolumeMode = kubeberth.Spec.VolumeMode
 	kubeberth.Status.StorageClass = kubeberth.Spec.StorageClassName
 	kubeberth.Status.ExternalDNSDomain = kubeberth.Spec.ExternalDNSDomainName
-
 	if err := r.Status().Update(ctx, kubeberth); err != nil {
-		log.Error(err, "unable to update KubeBerth status")
-		return ctrl.Result{}, err
+		log.Error(err, "unable to update a status of the KubeBerth")
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: false}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

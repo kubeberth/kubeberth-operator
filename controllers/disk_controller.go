@@ -45,7 +45,7 @@ type DiskReconciler struct {
 }
 
 const (
-	diskRequeueAfter = time.Second * 3
+	diskRequeueAfter = time.Second * 1
 )
 
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks,verbs=get;list;watch;create;update;patch;delete
@@ -249,7 +249,7 @@ func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alph
 	}
 
 	storageClassName := kubeberth.Spec.StorageClassName
-	volumeMode := corev1.PersistentVolumeBlock
+	volumeMode := kubeberth.Spec.VolumeMode
 	resourceRequest := corev1.ResourceList{}
 	resourceRequest[corev1.ResourceStorage] = resource.MustParse(disk.Spec.Size)
 	datavolume := &cdiv1.DataVolume{}
@@ -264,7 +264,7 @@ func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alph
 					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(disk.Spec.Size)},
 				},
 				StorageClassName: &storageClassName,
-				VolumeMode:       &volumeMode,
+				VolumeMode:       volumeMode,
 			},
 		}
 		datavolume.Spec = spec

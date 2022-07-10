@@ -13,7 +13,8 @@ metadata:
   name: kubeberth
   namespace: kubeberth
 spec:
-  storageClassName: "longhorn"
-  externalDNSDomainName: "kubeberth.k8s.arpa"
+  volumeMode: Block
+  storageClassName: longhorn
+  externalDNSDomainName: kubeberth.k8s.arpa
 
 ---
