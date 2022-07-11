@@ -301,11 +301,6 @@ func (r *ServerReconciler) ensureVirtualMachineExists(ctx context.Context, serve
 func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berthv1alpha1.Server) (ensuring bool, err error) {
 	log := r.Log.WithValues("ensureServerExists", server.GetName())
 
-	running := *server.Spec.Running
-	if (server.Status.State == "Running" && running) || (server.Status.State == "Stopped" && !running) {
-		return false, nil
-	}
-
 	if (server.Status.AttachedDisk != "") && (server.Status.AttachedDisk != server.Spec.Disk.Name) {
 		attachedDisk := &berthv1alpha1.Disk{}
 		nsn := types.NamespacedName{
