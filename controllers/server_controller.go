@@ -404,14 +404,18 @@ func (r *ServerReconciler) ensureServiceExists(ctx context.Context, server *bert
 	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Spec.Hostname + "." + kubeberth.Spec.ExternalDNSDomainName,
-	}
 
 	service := &corev1.Service{}
 	service.SetNamespace(server.GetNamespace())
 	service.SetName(server.GetName() + "-server")
-	service.SetAnnotations(annotations)
+
+	if kubeberth.Status.ExternalDNSDomain != "" {
+		annotations := map[string]string{
+			"external-dns.alpha.kubernetes.io/hostname": server.Status.Hostname + "." + kubeberth.Status.ExternalDNSDomain,
+		}
+		service.SetAnnotations(annotations)
+	}
+
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Ports = []corev1.ServicePort{
 			corev1.ServicePort{
