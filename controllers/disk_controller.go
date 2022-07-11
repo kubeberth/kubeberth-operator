@@ -188,6 +188,21 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 	case cdiv1.Succeeded:
 		disk.Status.Phase = "Created"
 		disk.Status.State = "Detached"
+		if disk.Spec.Source.Disk != nil {
+			sourceDisk := &berthv1alpha1.Disk{}
+			nsn := types.NamespacedName{
+				Namespace: disk.GetNamespace(),
+				Name:      disk.Spec.Source.Disk.Name,
+			}
+			if err := r.Get(ctx, nsn, sourceDisk); err != nil {
+				return true, err
+			}
+			sourceDisk.Status.State = "Detached"
+			if err := r.Status().Update(ctx, sourceDisk); err != nil {
+				log.Error(err, "unable to update a status of the source Disk")
+				return true, err
+			}
+		}
 	case cdiv1.Failed:
 		disk.Status.Phase = "Failed"
 	case cdiv1.Unknown:
@@ -308,6 +323,10 @@ func (r *DiskReconciler) createDataVolumeSource(ctx context.Context, disk *berth
 			Name:      disk.Spec.Source.Disk.Name,
 		}
 		if err := r.Get(ctx, nsn, sourceDisk); err != nil {
+			return nil, err
+		}
+		sourceDisk.Status.State = "Attached"
+		if err := r.Status().Update(ctx, sourceDisk); err != nil {
 			return nil, err
 		}
 
