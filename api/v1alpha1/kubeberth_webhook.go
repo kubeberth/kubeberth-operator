@@ -65,14 +65,15 @@ func (r *KubeBerth) ValidateCreate() error {
 	// TODO(user): fill in your validation logic upon object creation.
 	var errs field.ErrorList
 
-	if r.Spec.StorageClassName == "" {
-		errs = append(errs, field.Invalid(field.NewPath("Spec", "StorageClass"), r.Spec.StorageClassName, "is not defined"))
+	if !(*r.Spec.VolumeMode == corev1.PersistentVolumeBlock || *r.Spec.VolumeMode == corev1.PersistentVolumeFilesystem) {
+		errs = append(errs, field.Invalid(field.NewPath("Spec", "VolumeMode"), r.Spec.StorageClassName, "must be either Block or Filesystem"))
 	}
 
 	if len(errs) > 0 {
-		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Server"}, r.Name, errs)
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "KubeBerth"}, r.Name, errs)
 		return err
 	}
+
 	return nil
 }
 
@@ -81,6 +82,17 @@ func (r *KubeBerth) ValidateUpdate(old runtime.Object) error {
 	kubeberthlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
+	var errs field.ErrorList
+
+	if !(*r.Spec.VolumeMode == corev1.PersistentVolumeBlock || *r.Spec.VolumeMode == corev1.PersistentVolumeFilesystem) {
+		errs = append(errs, field.Invalid(field.NewPath("Spec", "VolumeMode"), r.Spec.StorageClassName, "must be either Block or Filesystem"))
+	}
+
+	if len(errs) > 0 {
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "KubeBerth"}, r.Name, errs)
+		return err
+	}
+
 	return nil
 }
 
