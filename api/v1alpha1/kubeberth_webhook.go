@@ -17,20 +17,26 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // log is for logging in this package.
 var kubeberthlog = logf.Log.WithName("kubeberth-resource")
+var kubeberthClient client.Client
 
 func (r *KubeBerth) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	kubeberthClient = mgr.GetClient()
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -64,9 +70,25 @@ func (r *KubeBerth) ValidateCreate() error {
 
 	// TODO(user): fill in your validation logic upon object creation.
 	var errs field.ErrorList
+	ctx := context.Background()
 
 	if !(*r.Spec.VolumeMode == corev1.PersistentVolumeBlock || *r.Spec.VolumeMode == corev1.PersistentVolumeFilesystem) {
-		errs = append(errs, field.Invalid(field.NewPath("Spec", "VolumeMode"), r.Spec.StorageClassName, "must be either Block or Filesystem"))
+		errs = append(errs, field.Invalid(field.NewPath("Spec", "VolumeMode"), *r.Spec.VolumeMode, "must be either Block or Filesystem"))
+	}
+
+	storageClasses := &storagev1.StorageClassList{}
+	if err := kubeberthClient.List(ctx, storageClasses, &client.ListOptions{}); err != nil {
+		errs = append(errs, field.Invalid(field.NewPath("Spec", "StorageClassName"), r.Spec.StorageClassName, "is not found"))
+	} else {
+		notFound := true
+		for _, storageClass := range storageClasses.Items {
+			if r.Spec.StorageClassName == storageClass.GetName() {
+				notFound = false
+			}
+		}
+		if notFound {
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "StorageClassName"), r.Spec.StorageClassName, "is not found"))
+		}
 	}
 
 	if len(errs) > 0 {
@@ -83,9 +105,25 @@ func (r *KubeBerth) ValidateUpdate(old runtime.Object) error {
 
 	// TODO(user): fill in your validation logic upon object update.
 	var errs field.ErrorList
+	ctx := context.Background()
 
 	if !(*r.Spec.VolumeMode == corev1.PersistentVolumeBlock || *r.Spec.VolumeMode == corev1.PersistentVolumeFilesystem) {
 		errs = append(errs, field.Invalid(field.NewPath("Spec", "VolumeMode"), r.Spec.StorageClassName, "must be either Block or Filesystem"))
+	}
+
+	storageClasses := &storagev1.StorageClassList{}
+	if err := kubeberthClient.List(ctx, storageClasses, &client.ListOptions{}); err != nil {
+		errs = append(errs, field.Invalid(field.NewPath("Spec", "StorageClassName"), r.Spec.StorageClassName, "is not found"))
+	} else {
+		notFound := true
+		for _, storageClass := range storageClasses.Items {
+			if r.Spec.StorageClassName == storageClass.GetName() {
+				notFound = false
+			}
+		}
+		if notFound {
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "StorageClassName"), r.Spec.StorageClassName, "is not found"))
+		}
 	}
 
 	if len(errs) > 0 {
