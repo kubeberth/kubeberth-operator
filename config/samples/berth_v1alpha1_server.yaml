@@ -10,7 +10,8 @@ spec:
   macAddress: 52:42:00:c7:90:10   # optional
   hostname: ubuntu-server
   #hosting: node-1.k8s.home.arpa   # optional
-  disk:
-    name: disk-sample
+  disks:
+    - name: disk-sample
+    - name: emptydisk-sample
   cloudinit:
     name: cloudinit-sample

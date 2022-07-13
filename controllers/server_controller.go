@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -118,38 +119,34 @@ func (r *ServerReconciler) createNodeSelector(server *berthv1alpha1.Server) map[
 func (r *ServerReconciler) createDomainDevicesDisks(ctx context.Context, server *berthv1alpha1.Server) []kubevirtv1.Disk {
 	var domainDevicesDisks []kubevirtv1.Disk
 
+	if len(server.Spec.Disks) != 0 {
+		for i, disk := range server.Spec.Disks {
+			bootOrder := (uint)(i + 1)
+			disk := kubevirtv1.Disk{
+				Name: disk.Name + "-disk",
+				DiskDevice: kubevirtv1.DiskDevice{
+					Disk: &kubevirtv1.DiskTarget{
+						Bus: "virtio",
+					},
+				},
+				BootOrder: &bootOrder,
+			}
+			domainDevicesDisks = append(domainDevicesDisks, disk)
+		}
+	}
+
 	if has, cloudinit := r.hasCloudInit(ctx, server); has {
 		readOnly := true
-		domainDevicesDisks = []kubevirtv1.Disk{
-			kubevirtv1.Disk{
-				Name: server.Spec.Disk.Name + "-disk",
-				DiskDevice: kubevirtv1.DiskDevice{
-					Disk: &kubevirtv1.DiskTarget{
-						Bus: "virtio",
-					},
-				},
-			},
-			kubevirtv1.Disk{
-				Name: cloudinit.Name + "-cloudinit",
-				DiskDevice: kubevirtv1.DiskDevice{
-					CDRom: &kubevirtv1.CDRomTarget{
-						Bus:      "scsi",
-						ReadOnly: &readOnly,
-					},
+		disk := kubevirtv1.Disk{
+			Name: cloudinit.Name + "-cloudinit",
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus:      "scsi",
+					ReadOnly: &readOnly,
 				},
 			},
 		}
-	} else {
-		domainDevicesDisks = []kubevirtv1.Disk{
-			kubevirtv1.Disk{
-				Name: server.Spec.Disk.Name + "-disk",
-				DiskDevice: kubevirtv1.DiskDevice{
-					Disk: &kubevirtv1.DiskTarget{
-						Bus: "virtio",
-					},
-				},
-			},
-		}
+		domainDevicesDisks = append(domainDevicesDisks, disk)
 	}
 
 	return domainDevicesDisks
@@ -183,36 +180,32 @@ func (r *ServerReconciler) createInterfaces(server *berthv1alpha1.Server) []kube
 
 func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alpha1.Server) []kubevirtv1.Volume {
 	var volumes []kubevirtv1.Volume
+
+	if len(server.Spec.Disks) != 0 {
+		for _, disk := range server.Spec.Disks {
+			volume := kubevirtv1.Volume{
+				Name: disk.Name + "-disk",
+				VolumeSource: kubevirtv1.VolumeSource{
+					DataVolume: &kubevirtv1.DataVolumeSource{
+						Name: disk.Name,
+					},
+				},
+			}
+			volumes = append(volumes, volume)
+		}
+	}
+
 	if has, cloudinit := r.hasCloudInit(ctx, server); has {
-		volumes = []kubevirtv1.Volume{
-			kubevirtv1.Volume{
-				Name: server.Spec.Disk.Name + "-disk",
-				VolumeSource: kubevirtv1.VolumeSource{
-					DataVolume: &kubevirtv1.DataVolumeSource{
-						Name: server.Spec.Disk.Name,
-					},
-				},
-			},
-			kubevirtv1.Volume{
-				Name: cloudinit.Name + "-cloudinit",
-				VolumeSource: kubevirtv1.VolumeSource{
-					CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-						UserData: cloudinit.Spec.UserData,
-					},
+		volume := kubevirtv1.Volume{
+			Name: cloudinit.Name + "-cloudinit",
+			VolumeSource: kubevirtv1.VolumeSource{
+				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+					UserData: cloudinit.Spec.UserData,
+					//NetworkData: cloudinit.Spec.NetworkData,
 				},
 			},
 		}
-	} else {
-		volumes = []kubevirtv1.Volume{
-			kubevirtv1.Volume{
-				Name: server.Spec.Disk.Name + "-disk",
-				VolumeSource: kubevirtv1.VolumeSource{
-					DataVolume: &kubevirtv1.DataVolumeSource{
-						Name: server.Spec.Disk.Name,
-					},
-				},
-			},
-		}
+		volumes = append(volumes, volume)
 	}
 
 	return volumes
@@ -301,41 +294,51 @@ func (r *ServerReconciler) ensureVirtualMachineExists(ctx context.Context, serve
 func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berthv1alpha1.Server) (ensuring bool, err error) {
 	log := r.Log.WithValues("ensureServerExists", server.GetName())
 
-	if (server.Status.AttachedDisk != "") && (server.Status.AttachedDisk != server.Spec.Disk.Name) {
-		attachedDisk := &berthv1alpha1.Disk{}
-		nsn := types.NamespacedName{
-			Namespace: server.GetNamespace(),
-			Name:      server.Status.AttachedDisk,
-		}
-		if err := r.Get(ctx, nsn, attachedDisk); err != nil {
-			return true, err
+	if (len(server.Status.AttachedDisks) != 0) && !reflect.DeepEqual(server.Status.AttachedDisks, server.Spec.Disks) {
+		for _, disk := range server.Status.AttachedDisks {
+			attachedDisk := &berthv1alpha1.Disk{}
+			nsn := types.NamespacedName{
+				Namespace: server.GetNamespace(),
+				Name:      disk.Name,
+			}
+			if err := r.Get(ctx, nsn, attachedDisk); err != nil {
+				return true, err
+			}
+
+			attachedDisk.Status.State = "Detached"
+			attachedDisk.Status.AttachedTo = ""
+			if err := r.Status().Update(ctx, attachedDisk); err != nil {
+				return true, err
+			}
 		}
 
-		attachedDisk.Status.State = "Detached"
-		attachedDisk.Status.AttachedTo = ""
-		if err := r.Status().Update(ctx, attachedDisk); err != nil {
-			return true, err
+		if len(server.Spec.Disks) != 0 {
+			server.Status.AttachedDisks = server.Spec.Disks
+		} else {
+			server.Status.AttachedDisks = []berthv1alpha1.AttachedDisk{}
 		}
-
-		server.Status.AttachedDisk = ""
 		if err := r.Status().Update(ctx, server); err != nil {
 			return true, err
 		}
 	}
 
-	disk := &berthv1alpha1.Disk{}
-	diskNsN := types.NamespacedName{
-		Namespace: server.GetNamespace(),
-		Name:      server.Spec.Disk.Name,
-	}
-	if err := r.Get(ctx, diskNsN, disk); err != nil {
-		return true, err
-	} else {
-		disk.Status.State = "Attached"
-		disk.Status.AttachedTo = server.GetName()
-		if err := r.Status().Update(ctx, disk); err != nil {
-			log.Error(err, "unable to update a status of the Disk")
-			return true, err
+	if len(server.Spec.Disks) != 0 {
+		for _, disk := range server.Spec.Disks {
+			attachingDisk := &berthv1alpha1.Disk{}
+			diskNsN := types.NamespacedName{
+				Namespace: server.GetNamespace(),
+				Name:      disk.Name,
+			}
+			if err := r.Get(ctx, diskNsN, attachingDisk); err != nil {
+				return true, err
+			} else {
+				attachingDisk.Status.State = "Attached"
+				attachingDisk.Status.AttachedTo = server.GetName()
+				if err := r.Status().Update(ctx, attachingDisk); err != nil {
+					log.Error(err, "unable to update a status of the Disk")
+					return true, err
+				}
+			}
 		}
 	}
 
@@ -365,7 +368,11 @@ func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berth
 	server.Status.CPU = server.Spec.CPU.String()
 	server.Status.Memory = server.Spec.Memory.String()
 	server.Status.Hostname = server.Spec.Hostname
-	server.Status.AttachedDisk = disk.GetName()
+	if len(server.Spec.Disks) != 0 {
+		server.Status.AttachedDisks = server.Spec.Disks
+	} else {
+		server.Status.AttachedDisks = []berthv1alpha1.AttachedDisk{}
+	}
 	if err := r.Status().Update(ctx, server); err != nil {
 		log.Error(err, "unable to update a status of the Server")
 		return true, err
@@ -448,16 +455,20 @@ func (r *ServerReconciler) handleFinalizer(ctx context.Context, server *berthv1a
 		return false, nil
 	} else {
 		if controllerutil.ContainsFinalizer(server, serverFinalizerName) {
-			disk := &berthv1alpha1.Disk{}
-			diskNsN := types.NamespacedName{
-				Namespace: server.GetNamespace(),
-				Name:      server.Spec.Disk.Name,
-			}
-			if err := r.Get(ctx, diskNsN, disk); err == nil {
-				disk.Status.State = "Detached"
-				disk.Status.AttachedTo = ""
-				if err := r.Status().Update(ctx, disk); err != nil {
-					return false, err
+			if len(server.Spec.Disks) != 0 {
+				for _, disk := range server.Spec.Disks {
+					attachedDisk := &berthv1alpha1.Disk{}
+					diskNsN := types.NamespacedName{
+						Namespace: server.GetNamespace(),
+						Name:      disk.Name,
+					}
+					if err := r.Get(ctx, diskNsN, attachedDisk); err == nil {
+						attachedDisk.Status.State = "Detached"
+						attachedDisk.Status.AttachedTo = ""
+						if err := r.Status().Update(ctx, attachedDisk); err != nil {
+							return false, err
+						}
+					}
 				}
 			}
 

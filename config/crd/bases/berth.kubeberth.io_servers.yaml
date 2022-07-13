@@ -67,13 +67,15 @@ spec:
                 - type: string
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
-              disk:
-                properties:
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
+              disks:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               hosting:
                 type: string
               hostname:
@@ -90,15 +92,21 @@ spec:
                 type: boolean
             required:
             - cpu
-            - disk
             - hostname
             - memory
             type: object
           status:
             description: ServerStatus defines the observed state of Server
             properties:
-              attachedDisk:
-                type: string
+              attachedDisks:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               cpu:
                 type: string
               hosting:
@@ -112,7 +120,7 @@ spec:
               state:
                 type: string
             required:
-            - attachedDisk
+            - attachedDisks
             - cpu
             - hosting
             - hostname

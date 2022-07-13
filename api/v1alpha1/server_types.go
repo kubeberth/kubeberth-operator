@@ -41,8 +41,8 @@ type ServerSpec struct {
 	Hostname string `json:"hostname"`
 	//+optional
 	Hosting string `json:"hosting,omitempty"`
-	//+kubebuilder:validation:Required
-	Disk *AttachedDisk `json:"disk"`
+	//+optional
+	Disks []AttachedDisk `json:"disks,omitempty"`
 	//+optional
 	CloudInit *AttachedCloudInit `json:"cloudinit,omitempty"`
 }
@@ -52,13 +52,13 @@ type ServerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State        string `json:"state"`
-	CPU          string `json:"cpu"`
-	Memory       string `json:"memory"`
-	Hostname     string `json:"hostname"`
-	IP           string `json:"ip"`
-	Hosting      string `json:"hosting"`
-	AttachedDisk string `json:"attachedDisk"`
+	State         string         `json:"state"`
+	CPU           string         `json:"cpu"`
+	Memory        string         `json:"memory"`
+	Hostname      string         `json:"hostname"`
+	IP            string         `json:"ip"`
+	Hosting       string         `json:"hosting"`
+	AttachedDisks []AttachedDisk `json:"attachedDisks"`
 }
 
 //+kubebuilder:object:root=true

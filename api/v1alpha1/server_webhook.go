@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"context"
+	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,18 +72,20 @@ func (r *Server) ValidateCreate() error {
 	var errs field.ErrorList
 	ctx := context.Background()
 
-	if r.Spec.Disk != nil {
-		disk := &Disk{}
-		nsn := types.NamespacedName{
-			Namespace: r.Namespace,
-			Name:      r.Spec.Disk.Name,
-		}
-		if err := serverClient.Get(ctx, nsn, disk); err != nil {
-			serverlog.Info("could not get disk", "name", r.Name)
-			errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), r.Spec.Disk.Name, "is not found"))
-		} else {
-			if disk.Status.State != "Detached" {
-				errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), disk.Status.State, "state must be \"Detached\""))
+	if len(r.Spec.Disks) != 0 {
+		for _, disk := range r.Spec.Disks {
+			validatingDisk := &Disk{}
+			nsn := types.NamespacedName{
+				Namespace: r.Namespace,
+				Name:      disk.Name,
+			}
+			if err := serverClient.Get(ctx, nsn, validatingDisk); err != nil {
+				serverlog.Info("could not get disk", "name", disk.Name)
+				errs = append(errs, field.Invalid(field.NewPath("Spec", "Disks"), disk.Name, "is not found"))
+			} else {
+				if validatingDisk.Status.State != "Detached" {
+					errs = append(errs, field.Invalid(field.NewPath("Spec", "Disks"), validatingDisk.Status.State, "state must be \"Detached\""))
+				}
 			}
 		}
 	}
@@ -94,8 +97,8 @@ func (r *Server) ValidateCreate() error {
 			Name:      r.Spec.CloudInit.Name,
 		}
 		if err := serverClient.Get(ctx, nsn, cloudinit); err != nil {
-			serverlog.Info("could not get cloudinit", "name", r.Name)
-			errs = append(errs, field.Invalid(field.NewPath("spec", "cloudinit"), r.Spec.CloudInit.Name, "is not found"))
+			serverlog.Info("could not get cloudinit", "name", r.Spec.CloudInit.Name)
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "CloudInit"), r.Spec.CloudInit.Name, "is not found"))
 		}
 	}
 
@@ -119,19 +122,19 @@ func (r *Server) ValidateUpdate(old runtime.Object) error {
 		errs = append(errs, field.Invalid(field.NewPath("spec", "running"), r.Status.State, "cloud not update a status of the state when the state is \"Running\" state"))
 	}
 
-	if r.Spec.Disk != nil {
-		if r.Spec.Disk.Name != r.Status.AttachedDisk {
-			disk := &Disk{}
+	if (len(r.Spec.Disks) != 0) && !reflect.DeepEqual(r.Status.AttachedDisks, r.Spec.Disks) {
+		for _, disk := range r.Spec.Disks {
+			validatingDisk := &Disk{}
 			nsn := types.NamespacedName{
 				Namespace: r.Namespace,
-				Name:      r.Spec.Disk.Name,
+				Name:      disk.Name,
 			}
-			if err := serverClient.Get(ctx, nsn, disk); err != nil {
-				serverlog.Info("could not get disk", "name", r.Spec.Disk.Name)
-				errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), r.Spec.Disk.Name, "is not found"))
+			if err := serverClient.Get(ctx, nsn, validatingDisk); err != nil {
+				serverlog.Info("could not get disk", "name", disk.Name)
+				errs = append(errs, field.Invalid(field.NewPath("Spec", "Disks"), disk.Name, "is not found"))
 			} else {
-				if disk.Status.State != "Detached" {
-					errs = append(errs, field.Invalid(field.NewPath("spec", "disk"), disk.Status.State, "state must be \"Detached\""))
+				if validatingDisk.Status.State != "Detached" && validatingDisk.Status.AttachedTo != r.Name {
+					errs = append(errs, field.Invalid(field.NewPath("Spec", "Disks"), validatingDisk.Status.State, "state must be \"Detached\""))
 				}
 			}
 		}
@@ -145,7 +148,7 @@ func (r *Server) ValidateUpdate(old runtime.Object) error {
 		}
 		if err := serverClient.Get(ctx, nsn, cloudinit); err != nil {
 			serverlog.Info("could not get cloudinit", "name", r.Spec.CloudInit.Name)
-			errs = append(errs, field.Invalid(field.NewPath("spec", "cloudinit"), r.Spec.CloudInit.Name, "is not found"))
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "CloudInit"), r.Spec.CloudInit.Name, "is not found"))
 		}
 	}
 
