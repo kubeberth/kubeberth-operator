@@ -9,7 +9,7 @@ OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
 
 function install_kubectl {
-  local VERSION="v1.24.0"
+  local VERSION="v1.24.2"
   echo -n "Install kubectl ${VERSION} ... "
   curl -sfLO "https://dl.k8s.io/release/${VERSION}/bin/${OS}/${ARCH}/kubectl"
   chmod +x ./kubectl
@@ -130,8 +130,8 @@ deploy_metallb
 
 echo "Deploy kubeberth-operator ... "
 make deploy > /dev/null
-echo -n " Wait for 60 seconds ... "
-sleep 60
+echo -n " Wait for 90 seconds ... "
+sleep 90
 ./tools/kubectl apply -f ./config/samples/berth_v1alpha1_kubeberth_storageclass_local-path.yaml > /dev/null
 ./tools/kubectl config set-context $(./tools/kubectl config current-context) --namespace=kubeberth > /dev/null
 echo "Done!"
