@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,6 +33,8 @@ type KubeBerthSpec struct {
 	//+kubebuilder:validation:Format=string
 	StorageClassName string `json:"storageClassName"`
 	//+optional
+	VolumeMode *corev1.PersistentVolumeMode `json:"volumeMode"`
+	//+optional
 	ExternalDNSDomainName string `json:"externalDNSDomainName"`
 }
 
@@ -40,12 +43,14 @@ type KubeBerthStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	StorageClass      string `json:"storageClass"`
-	ExternalDNSDomain string `json:"externalDNSDomain"`
+	StorageClass      string                       `json:"storageClass"`
+	VolumeMode        *corev1.PersistentVolumeMode `json:"volumeMode"`
+	ExternalDNSDomain string                       `json:"externalDNSDomain"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:printcolumn:name="StorageClass",type="string",JSONPath=".status.storageClass",description=""
+//+kubebuilder:printcolumn:name="VolumeMode",type="string",JSONPath=".status.volumeMode",description=""
 //+kubebuilder:printcolumn:name="ExternalDNSDomain",type="string",JSONPath=".status.externalDNSDomain",description=""
 //+kubebuilder:subresource:status
 

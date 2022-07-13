@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +38,7 @@ import (
 )
 
 const (
+	loadbalancerRequeueAfter  = time.Second * 3
 	loadbalancerFinalizerName = "finalizers.loadbalancers.berth.kubeberth.io"
 )
 
@@ -70,10 +72,11 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Get the LoadBalancer.
 	loadbalancer := &berthv1alpha1.LoadBalancer{}
 	if err := r.Get(ctx, req.NamespacedName, loadbalancer); err != nil {
+		log.Error(err, "could not get the LoadBalancer resource")
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	if deleted, err := r.handleFinalizer(ctx, loadbalancer); err != nil {
@@ -85,12 +88,12 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureServiceExists(ctx, loadbalancer); err != nil {
 		log.Error(err, "failed to do ensureServiceExists")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerRequeueAfter}, nil
 	}
 
 	if err := r.ensureLoadBalancerExists(ctx, loadbalancer); err != nil {
 		log.Error(err, "failed to do ensureLoadBalancerExists")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerRequeueAfter}, nil
 	}
 
 	return ctrl.Result{Requeue: false}, nil
@@ -108,32 +111,20 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 			),
 		}); err != nil && !k8serrors.IsNotFound(err) {
 			return err
-		}
-
-		for _, pod := range pods.Items {
-			copiedPod := pod.DeepCopy()
-			delete(copiedPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
-			patch := client.MergeFrom(&pod)
-			if err := r.Patch(ctx, copiedPod, patch); err != nil {
-				return err
+		} else {
+			for _, pod := range pods.Items {
+				copiedPod := pod.DeepCopy()
+				delete(copiedPod.Labels, "berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName())
+				patch := client.MergeFrom(&pod)
+				if err := r.Patch(ctx, copiedPod, patch); err != nil {
+					return err
+				}
 			}
 		}
 
-		destinations := []berthv1alpha1.Destination{}
-		for _, destination := range loadbalancer.Spec.Backends {
-			server := &berthv1alpha1.Server{}
-			serverNsN := types.NamespacedName{
-				Namespace: loadbalancer.GetNamespace(),
-				Name:      destination.Server,
-			}
-			if err := r.Get(ctx, serverNsN, server); err != nil && !k8serrors.IsNotFound(err) {
-				return err
-			}
-			destinations = append(destinations, berthv1alpha1.Destination{Server: server.GetName()})
-		}
 		copiedLB := loadbalancer.DeepCopy()
 		copiedLB.Status.State = "Updating"
-		copiedLB.Status.Backends = destinations
+		copiedLB.Status.Backends = loadbalancer.Spec.Backends
 		copiedLB.Status.Health = "Unhealthy"
 		patch := client.MergeFrom(loadbalancer)
 		if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
@@ -166,28 +157,32 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 	}
 
 	health := true
-	for _, destination := range loadbalancer.Status.Backends {
-		pods := &corev1.PodList{}
-		namespace := loadbalancer.GetNamespace()
-		if err := r.List(ctx, pods, &client.ListOptions{
-			Namespace: namespace,
-			LabelSelector: labels.SelectorFromSet(
-				map[string]string{
-					"kubevirt.io":               "virt-launcher",
-					"berth.kubeberth.io/server": destination.Server,
-				},
-			),
-		}); err != nil || len(pods.Items) == 0 {
-			health = false
-		}
+	if loadbalancer.Status.Backends == nil {
+		health = false
+	} else {
+		for _, destination := range loadbalancer.Status.Backends {
+			pods := &corev1.PodList{}
+			namespace := loadbalancer.GetNamespace()
+			if err := r.List(ctx, pods, &client.ListOptions{
+				Namespace: namespace,
+				LabelSelector: labels.SelectorFromSet(
+					map[string]string{
+						"kubevirt.io":               "virt-launcher",
+						"berth.kubeberth.io/server": destination.Server,
+					},
+				),
+			}); err != nil || len(pods.Items) == 0 {
+				health = false
+			}
 
-		for _, pod := range pods.Items {
-			if _, ok := pod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()]; !ok {
-				copiedPod := pod.DeepCopy()
-				copiedPod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()] = loadbalancer.GetName()
-				patch := client.MergeFrom(&pod)
-				if err := r.Patch(ctx, copiedPod, patch); err != nil {
-					return err
+			for _, pod := range pods.Items {
+				if _, ok := pod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()]; !ok {
+					copiedPod := pod.DeepCopy()
+					copiedPod.Labels["berth.kubeberth.io/loadbalancer-"+loadbalancer.GetName()] = loadbalancer.GetName()
+					patch := client.MergeFrom(&pod)
+					if err := r.Patch(ctx, copiedPod, patch); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -239,9 +234,8 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": loadbalancer.GetName() + ".lb." + externalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": loadbalancer.GetName() + ".lb." + kubeberth.Spec.ExternalDNSDomainName,
 	}
 
 	service := &corev1.Service{}
@@ -312,8 +306,10 @@ func (r *LoadBalancerReconciler) handleFinalizer(ctx context.Context, loadbalanc
 				return false, err
 			}
 		}
+
 		return true, nil
 	}
+
 	return false, nil
 }
 

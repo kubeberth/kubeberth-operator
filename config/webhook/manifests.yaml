@@ -31,6 +31,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-berth-kubeberth-io-v1alpha1-kubeberth
+  failurePolicy: Fail
+  name: mkubeberth.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kubeberths
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-berth-kubeberth-io-v1alpha1-loadbalancer
   failurePolicy: Fail
   name: mloadbalancer.kb.io
@@ -99,6 +119,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-berth-kubeberth-io-v1alpha1-kubeberth
+  failurePolicy: Fail
+  name: vkubeberth.kb.io
+  rules:
+  - apiGroups:
+    - berth.kubeberth.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kubeberths
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-berth-kubeberth-io-v1alpha1-loadbalancer
   failurePolicy: Fail
   name: vloadbalancer.kb.io
@@ -110,6 +150,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - loadbalancers
   sideEffects: None
@@ -130,6 +171,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - servers
   sideEffects: None

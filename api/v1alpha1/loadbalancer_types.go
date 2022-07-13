@@ -33,8 +33,8 @@ type LoadBalancerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	//+kubebuilder:validation:Required
-	Backends []Destination `json:"backends"`
+	//+optional
+	Backends []Destination `json:"backends,omitempty"`
 
 	//+kubebuilder:validation:Required
 	Ports []corev1.ServicePort `json:"ports"`
@@ -47,7 +47,7 @@ type LoadBalancerStatus struct {
 
 	State    string        `json:"state"`
 	IP       string        `json:"ip"`
-	Backends []Destination `json:"backends"`
+	Backends []Destination `json:"backends,omitempty"`
 	Health   string        `json:"health"`
 }
 

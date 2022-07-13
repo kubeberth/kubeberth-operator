@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,11 @@ import (
 
 	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+)
+
+const (
+	serverRequeueAfter  = time.Second * 3
+	serverFinalizerName = "finalizers.servers.berth.kubeberth.io"
 )
 
 // ServerReconciler reconciles a Server object
@@ -64,483 +71,415 @@ type ServerReconciler struct {
 func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("Server", req.NamespacedName)
 
-	// Get the Server.
 	server := &berthv1alpha1.Server{}
 	if err := r.Get(ctx, req.NamespacedName, server); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	if deleted, err := r.handleFinalizer(ctx, server); err != nil {
+		log.Error(err, "failed to do handleFinalizer")
+		return ctrl.Result{Requeue: true}, err
+	} else if deleted {
+		return ctrl.Result{Requeue: false}, nil
+	}
+
+	if err := r.ensureVirtualMachineExists(ctx, server); err != nil {
+		log.Error(err, "failed to do ensureVirtualMachineExists")
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	if ensuring, err := r.ensureServerExists(ctx, server); err != nil {
+		log.Error(err, "failed to do ensureServerExists")
+		return ctrl.Result{Requeue: true}, err
+	} else if ensuring {
+		return ctrl.Result{Requeue: true, RequeueAfter: serverRequeueAfter}, nil
+	}
+
+	if err := r.ensureServiceExists(ctx, server); err != nil {
+		log.Error(err, "failed to do ensureServiceExists")
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	return ctrl.Result{Requeue: false}, nil
+}
+
+func (r *ServerReconciler) createNodeSelector(server *berthv1alpha1.Server) map[string]string {
+	var nodeSelector map[string]string
+	if server.Spec.Hosting != "" {
+		nodeSelector = map[string]string{"kubernetes.io/hostname": server.Spec.Hosting}
+	}
+
+	return nodeSelector
+
+}
+
+func (r *ServerReconciler) createDomainDevicesDisks(ctx context.Context, server *berthv1alpha1.Server) []kubevirtv1.Disk {
+	var domainDevicesDisks []kubevirtv1.Disk
+
+	if len(server.Spec.Disks) != 0 {
+		for i, disk := range server.Spec.Disks {
+			bootOrder := (uint)(i + 1)
+			disk := kubevirtv1.Disk{
+				Name: disk.Name + "-disk",
+				DiskDevice: kubevirtv1.DiskDevice{
+					Disk: &kubevirtv1.DiskTarget{
+						Bus: "virtio",
+					},
+				},
+				BootOrder: &bootOrder,
+			}
+			domainDevicesDisks = append(domainDevicesDisks, disk)
+		}
+	}
+
+	if has, cloudinit := r.hasCloudInit(ctx, server); has {
+		readOnly := true
+		disk := kubevirtv1.Disk{
+			Name: cloudinit.Name + "-cloudinit",
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus:      "scsi",
+					ReadOnly: &readOnly,
+				},
+			},
+		}
+		domainDevicesDisks = append(domainDevicesDisks, disk)
+	}
+
+	return domainDevicesDisks
+}
+
+func (r *ServerReconciler) createInterfaces(server *berthv1alpha1.Server) []kubevirtv1.Interface {
+	var interfaces []kubevirtv1.Interface
+	if server.Spec.MACAddress != "" {
+		interfaces = []kubevirtv1.Interface{
+			kubevirtv1.Interface{
+				Name:       "default",
+				MacAddress: server.Spec.MACAddress,
+				InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+					Bridge: &kubevirtv1.InterfaceBridge{},
+				},
+			},
+		}
+	} else {
+		interfaces = []kubevirtv1.Interface{
+			kubevirtv1.Interface{
+				Name: "default",
+				InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+					Bridge: &kubevirtv1.InterfaceBridge{},
+				},
+			},
+		}
+	}
+
+	return interfaces
+}
+
+func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alpha1.Server) []kubevirtv1.Volume {
+	var volumes []kubevirtv1.Volume
+
+	if len(server.Spec.Disks) != 0 {
+		for _, disk := range server.Spec.Disks {
+			volume := kubevirtv1.Volume{
+				Name: disk.Name + "-disk",
+				VolumeSource: kubevirtv1.VolumeSource{
+					DataVolume: &kubevirtv1.DataVolumeSource{
+						Name: disk.Name,
+					},
+				},
+			}
+			volumes = append(volumes, volume)
+		}
+	}
+
+	if has, cloudinit := r.hasCloudInit(ctx, server); has {
+		volume := kubevirtv1.Volume{
+			Name: cloudinit.Name + "-cloudinit",
+			VolumeSource: kubevirtv1.VolumeSource{
+				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+					UserData: cloudinit.Spec.UserData,
+					//NetworkData: cloudinit.Spec.NetworkData,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+	}
+
+	return volumes
+}
+
+func (r *ServerReconciler) hasCloudInit(ctx context.Context, server *berthv1alpha1.Server) (bool, *berthv1alpha1.CloudInit) {
+	if server.Spec.CloudInit != nil {
+		nsn := types.NamespacedName{
+			Namespace: server.GetNamespace(),
+			Name:      server.Spec.CloudInit.Name,
+		}
+		cloudinit := &berthv1alpha1.CloudInit{}
+		if err := r.Get(ctx, nsn, cloudinit); err != nil {
+			return false, nil
+		}
+
+		return true, cloudinit
+	}
+
+	return false, nil
+}
+
+func (r *ServerReconciler) createVirtualMachineSpec(ctx context.Context, server *berthv1alpha1.Server) *kubevirtv1.VirtualMachineSpec {
+	nodeSelector := r.createNodeSelector(server)
+	resourceRequest := corev1.ResourceList{corev1.ResourceMemory: resource.MustParse(server.Spec.Memory.String())}
+	domainDevicesDisks := r.createDomainDevicesDisks(ctx, server)
+	interfaces := r.createInterfaces(server)
+	volumes := r.createVolumes(ctx, server)
+
+	return &kubevirtv1.VirtualMachineSpec{
+		Running: server.Spec.Running,
+		Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"berth.kubeberth.io/server": server.GetName(),
+				},
+			},
+			Spec: kubevirtv1.VirtualMachineInstanceSpec{
+				NodeSelector: nodeSelector,
+				Hostname:     server.Spec.Hostname,
+				Domain: kubevirtv1.DomainSpec{
+					CPU: &kubevirtv1.CPU{
+						Cores: uint32(server.Spec.CPU.Value()),
+					},
+					Resources: kubevirtv1.ResourceRequirements{
+						Requests: resourceRequest,
+					},
+					Devices: kubevirtv1.Devices{
+						Disks:      domainDevicesDisks,
+						Interfaces: interfaces,
+					},
+				},
+				Networks: []kubevirtv1.Network{
+					kubevirtv1.Network{
+						Name: "default",
+						NetworkSource: kubevirtv1.NetworkSource{
+							Pod: &kubevirtv1.PodNetwork{},
+						},
+					},
+				},
+				Volumes: volumes,
+			},
+		},
+	}
+
+}
+
+func (r *ServerReconciler) ensureVirtualMachineExists(ctx context.Context, server *berthv1alpha1.Server) error {
+	vm := &kubevirtv1.VirtualMachine{}
+	vm.SetNamespace(server.GetNamespace())
+	vm.SetName(server.GetName())
+	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, vm, func() error {
+		spec := r.createVirtualMachineSpec(ctx, server)
+		vm.Spec = *spec
+		if err := ctrl.SetControllerReference(server, vm, r.Scheme); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berthv1alpha1.Server) (ensuring bool, err error) {
+	log := r.Log.WithValues("ensureServerExists", server.GetName())
+
+	if (len(server.Status.AttachedDisks) != 0) && !reflect.DeepEqual(server.Status.AttachedDisks, server.Spec.Disks) {
+		for _, disk := range server.Status.AttachedDisks {
+			attachedDisk := &berthv1alpha1.Disk{}
+			nsn := types.NamespacedName{
+				Namespace: server.GetNamespace(),
+				Name:      disk.Name,
+			}
+			if err := r.Get(ctx, nsn, attachedDisk); err != nil {
+				return true, err
+			}
+
+			attachedDisk.Status.State = "Detached"
+			attachedDisk.Status.AttachedTo = ""
+			if err := r.Status().Update(ctx, attachedDisk); err != nil {
+				return true, err
+			}
+		}
+
+		if len(server.Spec.Disks) != 0 {
+			server.Status.AttachedDisks = server.Spec.Disks
+		} else {
+			server.Status.AttachedDisks = []berthv1alpha1.AttachedDisk{}
+		}
+		if err := r.Status().Update(ctx, server); err != nil {
+			return true, err
+		}
+	}
+
+	if len(server.Spec.Disks) != 0 {
+		for _, disk := range server.Spec.Disks {
+			attachingDisk := &berthv1alpha1.Disk{}
+			diskNsN := types.NamespacedName{
+				Namespace: server.GetNamespace(),
+				Name:      disk.Name,
+			}
+			if err := r.Get(ctx, diskNsN, attachingDisk); err != nil {
+				return true, err
+			} else {
+				attachingDisk.Status.State = "Attached"
+				attachingDisk.Status.AttachedTo = server.GetName()
+				if err := r.Status().Update(ctx, attachingDisk); err != nil {
+					log.Error(err, "unable to update a status of the Disk")
+					return true, err
+				}
+			}
+		}
+	}
+
+	nsn := types.NamespacedName{
+		Namespace: server.GetNamespace(),
+		Name:      server.GetName(),
+	}
+
+	vm := &kubevirtv1.VirtualMachine{}
+	if err := r.Get(ctx, nsn, vm); err != nil {
+		return true, err
+	} else {
+		server.Status.State = (string)(vm.Status.PrintableStatus)
+	}
+
+	vmi := &kubevirtv1.VirtualMachineInstance{}
+	if err := r.Get(ctx, nsn, vmi); err != nil {
+		server.Status.IP = ""
+		server.Status.Hosting = ""
+	} else {
+		server.Status.Hosting = vmi.Status.NodeName
+		if len(vmi.Status.Interfaces) > 0 {
+			server.Status.IP = vmi.Status.Interfaces[0].IP
+		}
 	}
 
 	server.Status.CPU = server.Spec.CPU.String()
 	server.Status.Memory = server.Spec.Memory.String()
 	server.Status.Hostname = server.Spec.Hostname
-	if err := r.Status().Update(ctx, server); err != nil {
-		log.Error(err, "unable to update Server status")
-		return ctrl.Result{}, err
-	}
-
-	finalizerName := "finalizers.servers.berth.kubeberth.io"
-
-	if server.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(server, finalizerName) {
-			controllerutil.AddFinalizer(server, finalizerName)
-
-			err := r.Update(ctx, server)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-		}
+	if len(server.Spec.Disks) != 0 {
+		server.Status.AttachedDisks = server.Spec.Disks
 	} else {
-		if controllerutil.ContainsFinalizer(server, finalizerName) {
-
-			diskNsN := types.NamespacedName{
-				Namespace: server.Namespace,
-				Name:      server.Spec.Disk.Name,
-			}
-
-			// Get the Disk.
-			disk := &berthv1alpha1.Disk{}
-			err := r.Get(ctx, diskNsN, disk)
-			if err == nil {
-				disk.Status.State = "Detached"
-				disk.Status.AttachedTo = ""
-				if err := r.Status().Update(ctx, disk); err != nil {
-					log.Error(err, "unable to update Disk status")
-					return ctrl.Result{}, err
-				}
-			}
-
-			controllerutil.RemoveFinalizer(server, finalizerName)
-
-			if err := r.Update(ctx, server); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-
-		return ctrl.Result{}, nil
+		server.Status.AttachedDisks = []berthv1alpha1.AttachedDisk{}
 	}
-
-	if server.Status.State == "Processing" {
-		createdVM := &kubevirtv1.VirtualMachine{}
-		if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
-
-		if (string)(createdVM.Status.PrintableStatus) != "" {
-			server.Status.State = (string)(createdVM.Status.PrintableStatus)
-			if err := r.Status().Update(ctx, server); err != nil {
-				log.Error(err, "unable to update Server status")
-				return ctrl.Result{}, err
-			}
-		}
-
-		return ctrl.Result{}, nil
-	} else if server.Status.State == "Stopped" {
-		server.Status.IP = ""
-		server.Status.Hosting = ""
-		if err := r.Status().Update(ctx, server); err != nil {
-			log.Error(err, "unable to update Server status")
-			return ctrl.Result{}, err
-		}
-	} else if server.Status.State == "Starting" || server.Status.State == "Stopping" {
-		createdVM := &kubevirtv1.VirtualMachine{}
-		if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
-
-		if (string)(createdVM.Status.PrintableStatus) != "" {
-			server.Status.State = (string)(createdVM.Status.PrintableStatus)
-			if err := r.Status().Update(ctx, server); err != nil {
-				log.Error(err, "unable to update Server status")
-				return ctrl.Result{}, err
-			}
-		}
-
-		return ctrl.Result{}, nil
-	}
-
-	if server.Status.State == "Running" && (server.Status.IP == "" || server.Status.Hosting == "") {
-		createdVMI := &kubevirtv1.VirtualMachineInstance{}
-		if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			}
-			return ctrl.Result{}, err
-		}
-
-		if len(createdVMI.Status.Interfaces) > 0 {
-			server.Status.IP = createdVMI.Status.Interfaces[0].IP
-		}
-		server.Status.Hosting = createdVMI.Status.NodeName
-		if err := r.Status().Update(ctx, server); err != nil {
-			log.Error(err, "unable to update Server status")
-			return ctrl.Result{}, err
-		}
-	}
-
-	running := *server.Spec.Running
-	isRunning := (server.Status.State == "Running" && running)
-	isStopped := (server.Status.State == "Stopped" && !running)
-	if isRunning || isStopped {
-		return ctrl.Result{}, nil
-	}
-
-	diskNsN := types.NamespacedName{
-		Namespace: server.Namespace,
-		Name:      server.Spec.Disk.Name,
-	}
-	// Get the Disk.
-	disk := &berthv1alpha1.Disk{}
-	if err := r.Get(ctx, diskNsN, disk); err != nil {
-		log.Error(err, "could not get disk")
-
-		server.Status.State = "Error"
-		if err := r.Status().Update(ctx, server); err != nil {
-			log.Error(err, "unable to update Server status")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{}, err
-	}
-
-	if server.Status.AttachedDisk != "" && (server.Status.AttachedDisk != disk.Name) {
-		attachedDiskNsN := types.NamespacedName{
-			Namespace: server.Namespace,
-			Name:      server.Status.AttachedDisk,
-		}
-
-		attachedDisk := &berthv1alpha1.Disk{}
-		if err := r.Get(ctx, attachedDiskNsN, attachedDisk); err != nil {
-			log.Error(err, "could not get disk")
-
-			server.Status.State = "Error"
-			if err := r.Status().Update(ctx, server); err != nil {
-				log.Error(err, "unable to update Server status")
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, err
-		}
-
-		attachedDisk.Status.State = "Detached"
-		attachedDisk.Status.AttachedTo = ""
-		if err := r.Status().Update(ctx, attachedDisk); err != nil {
-			log.Error(err, "unable to update Disk status")
-			return ctrl.Result{}, err
-		}
-	}
-
-	var cloudinit *berthv1alpha1.CloudInit
-	if server.Spec.CloudInit != nil {
-		cloudinitNsN := types.NamespacedName{
-			Namespace: server.Namespace,
-			Name:      server.Spec.CloudInit.Name,
-		}
-		// Get the CloudInit.
-		cloudinit = &berthv1alpha1.CloudInit{}
-		if err := r.Get(ctx, cloudinitNsN, cloudinit); err != nil {
-			log.Error(err, "could not get cloudinit")
-
-			server.Status.State = "Error"
-			if err := r.Status().Update(ctx, server); err != nil {
-				log.Error(err, "unable to update Server status")
-				return ctrl.Result{}, err
-			}
-		}
-	}
-
-	vm := &kubevirtv1.VirtualMachine{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name,
-			Namespace: server.Namespace,
-		},
-	}
-
-	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, vm, func() error {
-		resourceRequest := corev1.ResourceList{}
-		resourceRequest[corev1.ResourceMemory] = resource.MustParse(server.Spec.Memory.String())
-		readOnly := true
-
-		var deviceDisks []kubevirtv1.Disk
-		var volumes []kubevirtv1.Volume
-
-		if cloudinit != nil {
-			deviceDisks = []kubevirtv1.Disk{
-				kubevirtv1.Disk{
-					Name: server.Spec.Disk.Name + "-disk",
-					DiskDevice: kubevirtv1.DiskDevice{
-						Disk: &kubevirtv1.DiskTarget{
-							Bus: "virtio",
-						},
-					},
-				},
-				kubevirtv1.Disk{
-					Name: cloudinit.Name + "-cloudinit",
-					DiskDevice: kubevirtv1.DiskDevice{
-						CDRom: &kubevirtv1.CDRomTarget{
-							Bus:      "scsi",
-							ReadOnly: &readOnly,
-						},
-					},
-				},
-			}
-
-			volumes = []kubevirtv1.Volume{
-				kubevirtv1.Volume{
-					Name: server.Spec.Disk.Name + "-disk",
-					VolumeSource: kubevirtv1.VolumeSource{
-						DataVolume: &kubevirtv1.DataVolumeSource{
-							Name: server.Spec.Disk.Name,
-						},
-					},
-				},
-				kubevirtv1.Volume{
-					Name: cloudinit.Name + "-cloudinit",
-					VolumeSource: kubevirtv1.VolumeSource{
-						CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-							UserData: cloudinit.Spec.UserData,
-						},
-					},
-				},
-			}
-		} else {
-			deviceDisks = []kubevirtv1.Disk{
-				kubevirtv1.Disk{
-					Name: server.Spec.Disk.Name + "-disk",
-					DiskDevice: kubevirtv1.DiskDevice{
-						Disk: &kubevirtv1.DiskTarget{
-							Bus: "virtio",
-						},
-					},
-				},
-			}
-
-			volumes = []kubevirtv1.Volume{
-				kubevirtv1.Volume{
-					Name: server.Spec.Disk.Name + "-disk",
-					VolumeSource: kubevirtv1.VolumeSource{
-						DataVolume: &kubevirtv1.DataVolumeSource{
-							Name: server.Spec.Disk.Name,
-						},
-					},
-				},
-			}
-		}
-
-		var nodeSelector map[string]string
-		if server.Spec.Hosting != "" {
-			nodeSelector = map[string]string{"kubernetes.io/hostname": server.Spec.Hosting}
-		}
-
-		var interfaces []kubevirtv1.Interface
-		if server.Spec.MACAddress != "" {
-			interfaces = []kubevirtv1.Interface{
-				kubevirtv1.Interface{
-					Name:       "default",
-					MacAddress: server.Spec.MACAddress,
-					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-						Bridge: &kubevirtv1.InterfaceBridge{},
-					},
-				},
-			}
-		} else {
-			interfaces = []kubevirtv1.Interface{
-				kubevirtv1.Interface{
-					Name: "default",
-					InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-						Bridge: &kubevirtv1.InterfaceBridge{},
-					},
-				},
-			}
-		}
-
-		vm.Spec = kubevirtv1.VirtualMachineSpec{
-			Running: server.Spec.Running,
-			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"berth.kubeberth.io/server": server.GetName(),
-					},
-				},
-				Spec: kubevirtv1.VirtualMachineInstanceSpec{
-					NodeSelector: nodeSelector,
-					Hostname:     server.Spec.Hostname,
-					Domain: kubevirtv1.DomainSpec{
-						CPU: &kubevirtv1.CPU{
-							Cores: uint32(server.Spec.CPU.Value()),
-						},
-						Resources: kubevirtv1.ResourceRequirements{
-							Requests: resourceRequest,
-						},
-						Devices: kubevirtv1.Devices{
-							Disks:      deviceDisks,
-							Interfaces: interfaces,
-						},
-					},
-					Networks: []kubevirtv1.Network{
-						kubevirtv1.Network{
-							Name: "default",
-							NetworkSource: kubevirtv1.NetworkSource{
-								Pod: &kubevirtv1.PodNetwork{},
-							},
-						},
-					},
-					Volumes: volumes,
-				},
-			},
-		}
-
-		if err := ctrl.SetControllerReference(server, vm, r.Scheme); err != nil {
-			log.Error(err, "unable to set contrrollerReference from Server to VirtualMachine")
-			return err
-		}
-		return nil
-
-	}); err != nil {
-		// error handling of ctrl.CreateOrUpdate
-		log.Error(err, "unable to ensure VirtualMachine is correct")
-		return ctrl.Result{}, err
-	}
-
-	server.Status.State = "Processing"
 	if err := r.Status().Update(ctx, server); err != nil {
-		log.Error(err, "unable to update Server status")
-		return ctrl.Result{}, err
+		log.Error(err, "unable to update a status of the Server")
+		return true, err
 	}
 
+	return true, nil
+}
+
+func (r *ServerReconciler) checkServiceExists(ctx context.Context, nsn types.NamespacedName) bool {
+	service := &corev1.Service{}
+	if err := r.Get(ctx, nsn, service); err != nil {
+		return false
+	}
+	return true
+}
+
+func (r *ServerReconciler) ensureServiceExists(ctx context.Context, server *berthv1alpha1.Server) error {
+	nsn := types.NamespacedName{
+		Namespace: server.GetNamespace(),
+		Name:      server.GetName() + "-server",
+	}
+	if ok := r.checkServiceExists(ctx, nsn); ok {
+		return nil
+	}
+
+	kubeberth := &berthv1alpha1.KubeBerth{}
 	kubeberthNsN := types.NamespacedName{
 		Namespace: "kubeberth",
 		Name:      "kubeberth",
 	}
-	// Get the KubeBerth.
-	kubeberth := &berthv1alpha1.KubeBerth{}
-	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+	if err := r.Get(ctx, kubeberthNsN, kubeberth); err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+
+	service := &corev1.Service{}
+	service.SetNamespace(server.GetNamespace())
+	service.SetName(server.GetName() + "-server")
+
+	if kubeberth.Status.ExternalDNSDomain != "" {
+		annotations := map[string]string{
+			"external-dns.alpha.kubernetes.io/hostname": server.Status.Hostname + "." + kubeberth.Status.ExternalDNSDomain,
 		}
-		return ctrl.Result{}, err
+		service.SetAnnotations(annotations)
 	}
-
-	externalDNSDomainName := kubeberth.Spec.ExternalDNSDomainName
-	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": server.Spec.Hostname + "." + externalDNSDomainName,
-	}
-
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        server.Name + "-server",
-			Namespace:   server.Namespace,
-			Annotations: annotations,
-		},
-	}
-
-	servicePort := []corev1.ServicePort{
-		corev1.ServicePort{
-			Name:       "ssh",
-			Protocol:   corev1.ProtocolTCP,
-			Port:       22,
-			TargetPort: intstr.FromInt(22),
-		},
-	}
-
-	labels := map[string]string{
-		"berth.kubeberth.io/server": server.GetName(),
-	}
-
-	service.Spec.Type = corev1.ServiceTypeLoadBalancer
-	service.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyTypeLocal
-	service.Spec.Ports = servicePort
-	service.Spec.Selector = labels
 
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Spec.Ports = []corev1.ServicePort{
+			corev1.ServicePort{
+				Name:       "ssh",
+				Protocol:   corev1.ProtocolTCP,
+				Port:       22,
+				TargetPort: intstr.FromInt(22),
+			},
+		}
+		service.Spec.Selector = map[string]string{
+			"berth.kubeberth.io/server": server.GetName(),
+		}
+		service.Spec.Type = corev1.ServiceTypeLoadBalancer
+		service.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyTypeLocal
 		if err := ctrl.SetControllerReference(server, service, r.Scheme); err != nil {
-			log.Error(err, "unable to set controllerReference from Server to Service")
 			return err
 		}
 		return nil
 	}); err != nil {
-		// error handling of ctrl.CreateOrUpdate
-		log.Error(err, "unable to ensure Service is correct")
-		return ctrl.Result{}, err
+		return err
 	}
 
-	if err := r.Get(ctx, req.NamespacedName, server); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
+	return nil
+}
 
-	createdService := &corev1.Service{}
-	serviceNsN := types.NamespacedName{
-		Namespace: server.Namespace,
-		Name:      server.Name + "-server",
-	}
-
-	if err := r.Get(ctx, serviceNsN, createdService); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	if disk.Status.State == "Detached" {
-		disk.Status.State = "Attached"
-		disk.Status.AttachedTo = server.Name
-		if err := r.Status().Update(ctx, disk); err != nil {
-			log.Error(err, "unable to update Disk status")
-			return ctrl.Result{}, err
+func (r *ServerReconciler) handleFinalizer(ctx context.Context, server *berthv1alpha1.Server) (deleted bool, err error) {
+	if server.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(server, serverFinalizerName) {
+			controllerutil.AddFinalizer(server, serverFinalizerName)
+			if err := r.Update(ctx, server); err != nil {
+				return false, err
+			}
 		}
 
-		server.Status.AttachedDisk = disk.Name
-		if err := r.Status().Update(ctx, server); err != nil {
-			log.Error(err, "unable to update Disk status")
-			return ctrl.Result{}, err
+		return false, nil
+	} else {
+		if controllerutil.ContainsFinalizer(server, serverFinalizerName) {
+			if len(server.Spec.Disks) != 0 {
+				for _, disk := range server.Spec.Disks {
+					attachedDisk := &berthv1alpha1.Disk{}
+					diskNsN := types.NamespacedName{
+						Namespace: server.GetNamespace(),
+						Name:      disk.Name,
+					}
+					if err := r.Get(ctx, diskNsN, attachedDisk); err == nil {
+						attachedDisk.Status.State = "Detached"
+						attachedDisk.Status.AttachedTo = ""
+						if err := r.Status().Update(ctx, attachedDisk); err != nil {
+							return false, err
+						}
+					}
+				}
+			}
+
+			controllerutil.RemoveFinalizer(server, serverFinalizerName)
+			if err := r.Update(ctx, server); err != nil {
+				return false, err
+			}
 		}
+
+		return true, nil
 	}
-
-	createdVM := &kubevirtv1.VirtualMachine{}
-	if err := r.Get(ctx, req.NamespacedName, createdVM); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	createdVMI := &kubevirtv1.VirtualMachineInstance{}
-	if err := r.Get(ctx, req.NamespacedName, createdVMI); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	/*
-		if len(createdService.Status.LoadBalancer.Ingress) > 0 {
-			server.Status.IP = createdService.Status.LoadBalancer.Ingress[0].IP
-		}
-	*/
-
-	if len(createdVMI.Status.Interfaces) > 0 {
-		server.Status.IP = createdVMI.Status.Interfaces[0].IP
-	}
-	server.Status.Hosting = createdVMI.Status.NodeName
-	server.Status.State = (string)(createdVM.Status.PrintableStatus)
-
-	if err := r.Status().Update(ctx, server); err != nil {
-		log.Error(err, "unable to update Server status")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -19,6 +19,9 @@ spec:
     - jsonPath: .status.storageClass
       name: StorageClass
       type: string
+    - jsonPath: .status.volumeMode
+      name: VolumeMode
+      type: string
     - jsonPath: .status.externalDNSDomain
       name: ExternalDNSDomain
       type: string
@@ -47,6 +50,10 @@ spec:
               storageClassName:
                 format: string
                 type: string
+              volumeMode:
+                description: PersistentVolumeMode describes how a volume is intended
+                  to be consumed, either Block or Filesystem.
+                type: string
             required:
             - storageClassName
             type: object
@@ -57,9 +64,14 @@ spec:
                 type: string
               storageClass:
                 type: string
+              volumeMode:
+                description: PersistentVolumeMode describes how a volume is intended
+                  to be consumed, either Block or Filesystem.
+                type: string
             required:
             - externalDNSDomain
             - storageClass
+            - volumeMode
             type: object
         type: object
     served: true

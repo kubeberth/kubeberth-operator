@@ -56,22 +56,23 @@ func (r *ArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Get the archive.
 	archive := &berthv1alpha1.Archive{}
 	if err := r.Get(ctx, req.NamespacedName, archive); err != nil {
+		log.Error(err, "could not get the Archive resource")
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	if archive.Spec.Repository != "" {
 		archive.Status.State = "Created"
 		archive.Status.Repository = archive.Spec.Repository
 		if err := r.Status().Update(ctx, archive); err != nil {
-			log.Error(err, "unable to update Archive status")
-			return ctrl.Result{}, err
+			log.Error(err, "unable to update a status of the Archive")
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: false}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

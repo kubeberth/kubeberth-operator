@@ -1,7 +1,7 @@
 # Image URL to use all building/pushing image targets)
 IMG=kubeberth/kubeberth-operator:v1alpha1
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION=1.23.1
+ENVTEST_K8S_VERSION=1.24.2
 ENABLE_WEBHOOKS=true
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -127,6 +127,23 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
+.PHONY: devenv
+devenv:
+	./scripts/devenv.sh
+
+.PHONY: quick-start
+quick-start:
+	./scripts/quick-start.sh
+
+.PHONY: create-kind-cluster
+create-kind-cluster:
+	kind create cluster --config ./hack/kind-kubeberth-dev.yaml
+	docker exec -it kubeberth-dev-worker sh -c "apt update; apt install -y qemu-kvm libvirt-daemon" > /dev/null
+
+.PHONY: delete-kind-cluster
+delete-kind-cluster:
+	kind delete cluster --name kubeberth-dev
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

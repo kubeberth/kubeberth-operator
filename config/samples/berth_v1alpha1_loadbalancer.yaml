@@ -2,6 +2,7 @@ apiVersion: berth.kubeberth.io/v1alpha1
 kind: LoadBalancer
 metadata:
   name: loadbalancer-sample
+  namespace: kubeberth
 spec:
   backends:
   - server: server-sample

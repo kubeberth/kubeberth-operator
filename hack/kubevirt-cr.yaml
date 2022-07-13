@@ -1,0 +1,23 @@
+---
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  certificateRotateStrategy: {}
+  configuration:
+    developerConfiguration:
+      featureGates:
+        - BlockVolume
+        - DataVolumes
+        - ExpandDisks
+        - HotplugVolumes
+        - LiveMigration
+      pvcTolerateLessSpaceUpToPercent: 0
+  customizeComponents: {}
+  imagePullPolicy: IfNotPresent
+  infra:
+    replicas: 2
+  workloadUpdateStrategy: {}
+---

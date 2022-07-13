@@ -56,21 +56,22 @@ func (r *CloudInitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Get the cloudinit.
 	cloudinit := &berthv1alpha1.CloudInit{}
 	if err := r.Get(ctx, req.NamespacedName, cloudinit); err != nil {
+		log.Error(err, "could not get the CloudInit resource")
 		if k8serrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: false}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	cloudinit.Status.UserData = cloudinit.Spec.UserData
 	cloudinit.Status.NetworkData = cloudinit.Spec.NetworkData
 
 	if err := r.Status().Update(ctx, cloudinit); err != nil {
-		log.Error(err, "unable to update CloudInit status")
-		return ctrl.Result{}, err
+		log.Error(err, "unable to update a status of the CloudInit")
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: false}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

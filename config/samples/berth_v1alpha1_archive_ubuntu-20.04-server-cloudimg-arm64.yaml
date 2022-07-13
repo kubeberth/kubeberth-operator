@@ -1,0 +1,10 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: Archive
+metadata:
+  name: archive-sample
+  namespace: kubeberth
+spec:
+  # Local ISO Image Repository
+  #repository: "http://minio.home.arpa:9000/kubeberth/images/ubuntu-20.04-server-cloudimg-arm64.img"
+  # Public ISO Image Repository
+  repository: "https://cloud-images.ubuntu.com/releases/focal/release/ubuntu-20.04-server-cloudimg-arm64.img"
