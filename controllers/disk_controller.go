@@ -36,6 +36,10 @@ import (
 	berthv1alpha1 "github.com/kubeberth/kubeberth-operator/api/v1alpha1"
 )
 
+const (
+	diskRequeueAfter = time.Second * 1
+)
+
 // DiskReconciler reconciles a Disk object
 type DiskReconciler struct {
 	client.Client
@@ -43,10 +47,6 @@ type DiskReconciler struct {
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 }
-
-const (
-	diskRequeueAfter = time.Second * 1
-)
 
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=berth.kubeberth.io,resources=disks/status,verbs=get;update;patch
@@ -172,6 +172,7 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 	if err := r.Get(ctx, nsn, datavolume); err != nil {
 		return true, err
 	}
+	disk.Status.Progress = string(datavolume.Status.Progress)
 
 	disk.Status.State = "Provisioning"
 	switch datavolume.Status.Phase {
@@ -211,7 +212,7 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 		disk.Status.Phase = "Paused"
 	}
 
-	disk.Status.Progress = string(datavolume.Status.Progress)
+	disk.Status.Size = disk.Spec.Size
 	if err := r.Status().Update(ctx, disk); err != nil {
 		log.Error(err, "unable to update a status of the Disk")
 		return true, err
@@ -233,13 +234,7 @@ func (r *DiskReconciler) ensureDataVolumeExists(ctx context.Context, disk *berth
 	}
 
 	if err := r.createDataVolume(ctx, disk); err != nil {
-		return err
-	}
-
-	disk.Status.Size = disk.Spec.Size
-	disk.Status.State = "Provisioning"
-	if err := r.Status().Update(ctx, disk); err != nil {
-		log.Error(err, "unable to update a status of the Disk")
+		log.Error(err, "unable to craete a DataVolumeupdate")
 		return err
 	}
 
@@ -263,10 +258,10 @@ func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alph
 		return err
 	}
 
+	accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	resourceRequest := corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(disk.Spec.Size)}
 	storageClassName := kubeberth.Spec.StorageClassName
 	volumeMode := kubeberth.Spec.VolumeMode
-	resourceRequest := corev1.ResourceList{}
-	resourceRequest[corev1.ResourceStorage] = resource.MustParse(disk.Spec.Size)
 	datavolume := &cdiv1.DataVolume{}
 	datavolume.SetNamespace(disk.GetNamespace())
 	datavolume.SetName(disk.GetName())
@@ -274,9 +269,9 @@ func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alph
 		spec := cdiv1.DataVolumeSpec{
 			Source: datavolumeSource,
 			PVC: &corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				AccessModes: accessModes,
 				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(disk.Spec.Size)},
+					Requests: resourceRequest,
 				},
 				StorageClassName: &storageClassName,
 				VolumeMode:       volumeMode,

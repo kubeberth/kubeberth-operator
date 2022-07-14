@@ -136,6 +136,22 @@ func (r *ServerReconciler) createDomainDevicesDisks(ctx context.Context, server 
 		}
 	}
 
+	if has, isoimage := r.hasISOImage(ctx, server); has {
+		bootOrder := (uint)(len(server.Spec.Disks) + 1)
+		readOnly := true
+		disk := kubevirtv1.Disk{
+			Name: isoimage.Name + "-isoimage",
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus:      "scsi",
+					ReadOnly: &readOnly,
+				},
+			},
+			BootOrder: &bootOrder,
+		}
+		domainDevicesDisks = append(domainDevicesDisks, disk)
+	}
+
 	if has, cloudinit := r.hasCloudInit(ctx, server); has {
 		readOnly := true
 		disk := kubevirtv1.Disk{
@@ -196,6 +212,18 @@ func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alp
 		}
 	}
 
+	if has, isoimage := r.hasISOImage(ctx, server); has {
+		volume := kubevirtv1.Volume{
+			Name: isoimage.Name + "-isoimage",
+			VolumeSource: kubevirtv1.VolumeSource{
+				DataVolume: &kubevirtv1.DataVolumeSource{
+					Name: isoimage.Name,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+	}
+
 	if has, cloudinit := r.hasCloudInit(ctx, server); has {
 		volume := kubevirtv1.Volume{
 			Name: cloudinit.Name + "-cloudinit",
@@ -210,6 +238,23 @@ func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alp
 	}
 
 	return volumes
+}
+
+func (r *ServerReconciler) hasISOImage(ctx context.Context, server *berthv1alpha1.Server) (bool, *berthv1alpha1.ISOImage) {
+	if server.Spec.ISOImage != nil {
+		nsn := types.NamespacedName{
+			Namespace: server.GetNamespace(),
+			Name:      server.Spec.ISOImage.Name,
+		}
+		isoimage := &berthv1alpha1.ISOImage{}
+		if err := r.Get(ctx, nsn, isoimage); err != nil {
+			return false, nil
+		}
+
+		return true, isoimage
+	}
+
+	return false, nil
 }
 
 func (r *ServerReconciler) hasCloudInit(ctx context.Context, server *berthv1alpha1.Server) (bool, *berthv1alpha1.CloudInit) {
