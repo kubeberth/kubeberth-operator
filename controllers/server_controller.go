@@ -86,6 +86,11 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{Requeue: false}, nil
 	}
 
+	if err := r.ensureServiceExists(ctx, server); err != nil {
+		log.Error(err, "failed to do ensureServiceExists")
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	if err := r.ensureVirtualMachineExists(ctx, server); err != nil {
 		log.Error(err, "failed to do ensureVirtualMachineExists")
 		return ctrl.Result{Requeue: true}, err
@@ -95,12 +100,8 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Error(err, "failed to do ensureServerExists")
 		return ctrl.Result{Requeue: true}, err
 	} else if ensuring {
+		log.Error(err, "ensureing Server Exists")
 		return ctrl.Result{Requeue: true, RequeueAfter: serverRequeueAfter}, nil
-	}
-
-	if err := r.ensureServiceExists(ctx, server); err != nil {
-		log.Error(err, "failed to do ensureServiceExists")
-		return ctrl.Result{Requeue: true}, err
 	}
 
 	return ctrl.Result{Requeue: false}, nil
@@ -311,15 +312,6 @@ func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berth
 				return true, err
 			}
 		}
-
-		if len(server.Spec.Disks) != 0 {
-			server.Status.AttachedDisks = server.Spec.Disks
-		} else {
-			server.Status.AttachedDisks = []berthv1alpha1.AttachedDisk{}
-		}
-		if err := r.Status().Update(ctx, server); err != nil {
-			return true, err
-		}
 	}
 
 	if len(server.Spec.Disks) != 0 {
@@ -378,7 +370,13 @@ func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berth
 		return true, err
 	}
 
-	return true, nil
+	running := *server.Spec.Running
+	if (running && server.Status.State == "Running") || (!running && server.Status.State == "Stopped") {
+		return false, nil
+	} else {
+		return true, nil
+	}
+
 }
 
 func (r *ServerReconciler) checkServiceExists(ctx context.Context, nsn types.NamespacedName) bool {
