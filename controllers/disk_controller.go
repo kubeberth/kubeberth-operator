@@ -188,7 +188,7 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 	case cdiv1.Succeeded:
 		disk.Status.Phase = "Created"
 		disk.Status.State = "Detached"
-		if disk.Spec.Source.Disk != nil {
+		if (disk.Spec.Source != nil) && (disk.Spec.Source.Disk != nil) {
 			sourceDisk := &berthv1alpha1.Disk{}
 			nsn := types.NamespacedName{
 				Namespace: disk.GetNamespace(),
