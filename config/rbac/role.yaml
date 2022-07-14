@@ -122,6 +122,32 @@ rules:
 - apiGroups:
   - berth.kubeberth.io
   resources:
+  - isoimages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - isoimages/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
+  - isoimages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - berth.kubeberth.io
+  resources:
   - kubeberths
   verbs:
   - create

@@ -1,0 +1,15 @@
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: ISOImage
+metadata:
+  name: isoimage-sample
+  namespace: kubeberth
+spec:
+  size: 2Gi
+  # Public ISO Image Repository for amd
+  repository: "https://cloud-images.ubuntu.com/releases/focal/release/ubuntu-20.04-server-cloudimg-amd64.img"
+  # Public ISO Image Repository for arm
+  #repository: "https://cloud-images.ubuntu.com/releases/focal/release/ubuntu-20.04-server-cloudimg-arm64.img"
+  # Local ISO Image Repository for amd
+  #repository: "http://minio.home.arpa:9000/kubeberth/images/ubuntu-20.04-server-cloudimg-amd64.img"
+  # Local ISO Image Repository for arm
+  #repository: "http://minio.home.arpa:9000/kubeberth/images/ubuntu-20.04-server-cloudimg-arm64.img"

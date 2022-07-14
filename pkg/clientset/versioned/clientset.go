@@ -5,6 +5,7 @@ import (
 	archives "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/archives/v1alpha1"
 	cloudinits "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/cloudinits/v1alpha1"
 	disks "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/disks/v1alpha1"
+	isoimages "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/isoimages/v1alpha1"
 	loadbalancers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/loadbalancers/v1alpha1"
 	servers "github.com/kubeberth/kubeberth-operator/pkg/clientset/versioned/typed/servers/v1alpha1"
 
@@ -15,6 +16,7 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
+	ISOImages() isoimages.ISOImagesInterface
 	Archives() archives.ArchivesInterface
 	CloudInits() cloudinits.CloudInitsInterface
 	Disks() disks.DisksInterface
@@ -26,6 +28,7 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
+	isoimages     *isoimages.ISOImagesClient
 	archives      *archives.ArchivesClient
 	cloudinits    *cloudinits.CloudInitsClient
 	disks         *disks.DisksClient
@@ -39,6 +42,10 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 		return nil
 	}
 	return c.DiscoveryClient
+}
+
+func (c *Clientset) ISOImages() isoimages.ISOImagesInterface {
+	return c.isoimages
 }
 
 func (c *Clientset) Archives() archives.ArchivesInterface {
@@ -81,6 +88,11 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 
+	cs.isoimages, err = isoimages.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+
 	cs.archives, err = archives.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -114,6 +126,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
+	cs.isoimages = isoimages.NewForConfigOrDie(c)
 	cs.archives = archives.NewForConfigOrDie(c)
 	cs.cloudinits = cloudinits.NewForConfigOrDie(c)
 	cs.disks = disks.NewForConfigOrDie(c)
@@ -127,6 +140,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
+	cs.isoimages = isoimages.New(c)
 	cs.archives = archives.New(c)
 	cs.cloudinits = cloudinits.New(c)
 	cs.disks = disks.New(c)

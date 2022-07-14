@@ -90,6 +90,18 @@ func (r *Server) ValidateCreate() error {
 		}
 	}
 
+	if r.Spec.ISOImage != nil {
+		isoimage := &ISOImage{}
+		nsn := types.NamespacedName{
+			Namespace: r.Namespace,
+			Name:      r.Spec.ISOImage.Name,
+		}
+		if err := serverClient.Get(ctx, nsn, isoimage); err != nil {
+			serverlog.Info("could not get isoimage", "name", r.Spec.ISOImage.Name)
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "ISOImage"), r.Spec.ISOImage.Name, "is not found"))
+		}
+	}
+
 	if r.Spec.CloudInit != nil {
 		cloudinit := &CloudInit{}
 		nsn := types.NamespacedName{
@@ -137,6 +149,18 @@ func (r *Server) ValidateUpdate(old runtime.Object) error {
 					errs = append(errs, field.Invalid(field.NewPath("Spec", "Disks"), validatingDisk.Status.State, "state must be \"Detached\""))
 				}
 			}
+		}
+	}
+
+	if r.Spec.ISOImage != nil {
+		isoimage := &ISOImage{}
+		nsn := types.NamespacedName{
+			Namespace: r.Namespace,
+			Name:      r.Spec.ISOImage.Name,
+		}
+		if err := serverClient.Get(ctx, nsn, isoimage); err != nil {
+			serverlog.Info("could not get isoimage", "name", r.Spec.ISOImage.Name)
+			errs = append(errs, field.Invalid(field.NewPath("Spec", "ISOImage"), r.Spec.ISOImage.Name, "is not found"))
 		}
 	}
 

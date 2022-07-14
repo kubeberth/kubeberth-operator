@@ -80,6 +80,13 @@ spec:
                 type: string
               hostname:
                 type: string
+              isoimage:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
               macAddress:
                 type: string
               memory:

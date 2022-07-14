@@ -44,6 +44,8 @@ type ServerSpec struct {
 	//+optional
 	Disks []AttachedDisk `json:"disks,omitempty"`
 	//+optional
+	ISOImage *AttachedISOImage `json:"isoimage,omitempty"`
+	//+optional
 	CloudInit *AttachedCloudInit `json:"cloudinit,omitempty"`
 }
 
