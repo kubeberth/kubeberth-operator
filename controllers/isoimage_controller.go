@@ -99,7 +99,7 @@ func (r *ISOImageReconciler) ensureISOImageExists(ctx context.Context, isoimage 
 	datavolume := &cdiv1.DataVolume{}
 	nsn := types.NamespacedName{
 		Namespace: isoimage.GetNamespace(),
-		Name:      isoimage.GetName(),
+		Name:      isoimage.GetName() + "-isoimage",
 	}
 	if err := r.Get(ctx, nsn, datavolume); err != nil {
 		return true, err
@@ -144,7 +144,7 @@ func (r *ISOImageReconciler) ensureDataVolumeExists(ctx context.Context, isoimag
 	datavolume := &cdiv1.DataVolume{}
 	nsn := types.NamespacedName{
 		Namespace: isoimage.GetNamespace(),
-		Name:      isoimage.GetName(),
+		Name:      isoimage.GetName() + "-isoimage",
 	}
 	if err := r.Get(ctx, nsn, datavolume); err == nil {
 		return nil
@@ -181,7 +181,7 @@ func (r *ISOImageReconciler) createDataVolume(ctx context.Context, isoimage *ber
 	volumeMode := kubeberth.Spec.VolumeMode
 	datavolume := &cdiv1.DataVolume{}
 	datavolume.SetNamespace(isoimage.GetNamespace())
-	datavolume.SetName(isoimage.GetName())
+	datavolume.SetName(isoimage.GetName() + "-isoimage")
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, datavolume, func() error {
 		spec := cdiv1.DataVolumeSpec{
 			Source: datavolumeSource,

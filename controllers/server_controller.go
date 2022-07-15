@@ -204,7 +204,7 @@ func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alp
 				Name: disk.Name + "-disk",
 				VolumeSource: kubevirtv1.VolumeSource{
 					DataVolume: &kubevirtv1.DataVolumeSource{
-						Name: disk.Name,
+						Name: disk.Name + "-disk",
 					},
 				},
 			}
@@ -217,7 +217,7 @@ func (r *ServerReconciler) createVolumes(ctx context.Context, server *berthv1alp
 			Name: isoimage.Name + "-isoimage",
 			VolumeSource: kubevirtv1.VolumeSource{
 				DataVolume: &kubevirtv1.DataVolumeSource{
-					Name: isoimage.Name,
+					Name: isoimage.Name + "-isoimage",
 				},
 			},
 		}

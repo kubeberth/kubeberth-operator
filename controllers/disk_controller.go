@@ -108,7 +108,7 @@ func (r *DiskReconciler) isDiskExpanding(ctx context.Context, disk *berthv1alpha
 	if (&specSize).Cmp(statusSize) > 0 {
 		pvc := &corev1.PersistentVolumeClaim{}
 		pvc.SetNamespace(disk.GetNamespace())
-		pvc.SetName(disk.GetName())
+		pvc.SetName(disk.GetName() + "-disk")
 		if _, err := ctrl.CreateOrUpdate(ctx, r.Client, pvc, func() error {
 			pvc.Spec.Resources = corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: specSize},
@@ -132,7 +132,7 @@ func (r *DiskReconciler) isDiskExpanding(ctx context.Context, disk *berthv1alpha
 		pvc := &corev1.PersistentVolumeClaim{}
 		pvcNsN := types.NamespacedName{
 			Namespace: disk.GetNamespace(),
-			Name:      disk.GetName(),
+			Name:      disk.GetName() + "-disk",
 		}
 		if err := r.Get(ctx, pvcNsN, pvc); err != nil {
 			return true, err
@@ -167,7 +167,7 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 	datavolume := &cdiv1.DataVolume{}
 	nsn := types.NamespacedName{
 		Namespace: disk.GetNamespace(),
-		Name:      disk.GetName(),
+		Name:      disk.GetName() + "-disk",
 	}
 	if err := r.Get(ctx, nsn, datavolume); err != nil {
 		return true, err
@@ -227,7 +227,7 @@ func (r *DiskReconciler) ensureDataVolumeExists(ctx context.Context, disk *berth
 	datavolume := &cdiv1.DataVolume{}
 	nsn := types.NamespacedName{
 		Namespace: disk.GetNamespace(),
-		Name:      disk.GetName(),
+		Name:      disk.GetName() + "-disk",
 	}
 	if err := r.Get(ctx, nsn, datavolume); err == nil {
 		return nil
@@ -264,7 +264,7 @@ func (r *DiskReconciler) createDataVolume(ctx context.Context, disk *berthv1alph
 	volumeMode := kubeberth.Spec.VolumeMode
 	datavolume := &cdiv1.DataVolume{}
 	datavolume.SetNamespace(disk.GetNamespace())
-	datavolume.SetName(disk.GetName())
+	datavolume.SetName(disk.GetName() + "-disk")
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, datavolume, func() error {
 		spec := cdiv1.DataVolumeSpec{
 			Source: datavolumeSource,
