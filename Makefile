@@ -109,6 +109,11 @@ delete-operator:
 .PHONY: redeploy-operator
 redeploy-operator: delete-operator deploy
 
+.PHONY: delete-admission-webhook
+delete-admission-webhook:
+	kubectl delete mutatingwebhookconfiguration.admissionregistration.k8s.io/kubeberth-operator-mutating-webhook-configuration
+	kubectl delete validatingwebhookconfiguration.admissionregistration.k8s.io/kubeberth-operator-validating-webhook-configuration
+
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -

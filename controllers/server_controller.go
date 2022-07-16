@@ -456,7 +456,7 @@ func (r *ServerReconciler) ensureServiceExists(ctx context.Context, server *bert
 
 	if kubeberth.Status.ExternalDNSDomain != "" {
 		annotations := map[string]string{
-			"external-dns.alpha.kubernetes.io/hostname": server.Status.Hostname + "." + kubeberth.Status.ExternalDNSDomain,
+			"external-dns.alpha.kubernetes.io/hostname": server.Status.Hostname + ".server." + kubeberth.Status.ExternalDNSDomain,
 		}
 		service.SetAnnotations(annotations)
 	}

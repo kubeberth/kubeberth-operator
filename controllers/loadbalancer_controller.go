@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"net"
 	"reflect"
 	"time"
 
@@ -38,8 +39,9 @@ import (
 )
 
 const (
-	loadbalancerRequeueAfter  = time.Second * 3
-	loadbalancerFinalizerName = "finalizers.loadbalancers.berth.kubeberth.io"
+	loadbalancerEnsuringRequeueAfter    = time.Second * 3
+	loadbalancerHealthCheckRequeueAfter = time.Second * 60
+	loadbalancerFinalizerName           = "finalizers.loadbalancers.berth.kubeberth.io"
 )
 
 // LoadBalancerReconciler reconciles a LoadBalancer object
@@ -88,18 +90,42 @@ func (r *LoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureServiceExists(ctx, loadbalancer); err != nil {
 		log.Error(err, "failed to do ensureServiceExists")
-		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerRequeueAfter}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerEnsuringRequeueAfter}, nil
 	}
 
 	if err := r.ensureLoadBalancerExists(ctx, loadbalancer); err != nil {
 		log.Error(err, "failed to do ensureLoadBalancerExists")
-		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerRequeueAfter}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerEnsuringRequeueAfter}, nil
 	}
 
-	return ctrl.Result{Requeue: false}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: loadbalancerHealthCheckRequeueAfter}, nil
 }
 
 func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, loadbalancer *berthv1alpha1.LoadBalancer) error {
+	log := r.Log.WithValues("ensureLoadBalancerExists", loadbalancer.GetName())
+
+	if loadbalancer.Status.IP == "None" {
+		service := &corev1.Service{}
+		nsn := types.NamespacedName{
+			Namespace: loadbalancer.GetNamespace(),
+			Name:      loadbalancer.GetName() + "-loadbalancer",
+		}
+		if err := r.Get(ctx, nsn, service); err != nil && !k8serrors.IsNotFound(err) {
+			return err
+		}
+		if len(service.Status.LoadBalancer.Ingress) > 0 {
+			copiedLB := loadbalancer.DeepCopy()
+			copiedLB.Status.State = "Created"
+			copiedLB.Status.IP = service.Status.LoadBalancer.Ingress[0].IP
+			patch := client.MergeFrom(loadbalancer)
+			if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
+				return err
+			}
+		} else {
+			return errors.New("Failed to get service loadbalancer ingress IP address")
+		}
+	}
+
 	if !reflect.DeepEqual(loadbalancer.Spec.Backends, loadbalancer.Status.Backends) {
 		pods := &corev1.PodList{}
 		if err := r.List(ctx, pods, &client.ListOptions{
@@ -125,40 +151,17 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 		copiedLB := loadbalancer.DeepCopy()
 		copiedLB.Status.State = "Updating"
 		copiedLB.Status.Backends = loadbalancer.Spec.Backends
+		copiedLB.Status.BackendsStatus = map[string]string{}
 		copiedLB.Status.Health = "Unhealthy"
 		patch := client.MergeFrom(loadbalancer)
 		if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
 			return err
 		}
-
-		return nil
 	}
 
-	if loadbalancer.Status.IP == "None" {
-		service := &corev1.Service{}
-		nsn := types.NamespacedName{
-			Namespace: loadbalancer.GetNamespace(),
-			Name:      loadbalancer.GetName() + "-loadbalancer",
-		}
-		if err := r.Get(ctx, nsn, service); err != nil && !k8serrors.IsNotFound(err) {
-			return err
-		}
-		if len(service.Status.LoadBalancer.Ingress) > 0 {
-			copiedLB := loadbalancer.DeepCopy()
-			copiedLB.Status.State = "Created"
-			copiedLB.Status.IP = service.Status.LoadBalancer.Ingress[0].IP
-			patch := client.MergeFrom(loadbalancer)
-			if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
-				return err
-			}
-		} else {
-			return errors.New("Failed to get service loadbalancer ingress IP address")
-		}
-	}
-
-	health := true
+	loadbalancerHealth := true
 	if loadbalancer.Status.Backends == nil {
-		health = false
+		loadbalancerHealth = false
 	} else {
 		for _, destination := range loadbalancer.Status.Backends {
 			pods := &corev1.PodList{}
@@ -172,7 +175,25 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 					},
 				),
 			}); err != nil || len(pods.Items) == 0 {
-				health = false
+				copiedLB := loadbalancer.DeepCopy()
+				server := &berthv1alpha1.Server{}
+				nsn := types.NamespacedName{
+					Namespace: loadbalancer.GetNamespace(),
+					Name:      destination.Server,
+				}
+				if err := r.Get(ctx, nsn, server); err != nil {
+					log.Info("destination server is deleted")
+					copiedLB.Status.BackendsStatus[destination.Server] = "Deleted"
+				} else {
+					log.Info("destination server is stopped")
+					copiedLB.Status.BackendsStatus[destination.Server] = "Stopped"
+				}
+
+				loadbalancerHealth = false
+				patch := client.MergeFrom(loadbalancer)
+				if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
+					return err
+				}
 			}
 
 			for _, pod := range pods.Items {
@@ -184,11 +205,41 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 						return err
 					}
 				}
+
+				for _, servicePort := range loadbalancer.Spec.Ports {
+					var network string
+					protocol := servicePort.Protocol
+					switch protocol {
+					case corev1.ProtocolTCP:
+						network = "tcp"
+					case corev1.ProtocolUDP:
+						network = "udp"
+					}
+
+					ip := pod.Status.PodIP
+					port := servicePort.TargetPort.String()
+					address := ip + ":" + port
+					timeout := time.Second * 3
+					copiedLB := loadbalancer.DeepCopy()
+					d := net.Dialer{Timeout: timeout}
+					if _, err := d.Dial(network, address); err != nil {
+						log.Info(err.Error() + ": failed to check destination server connection health")
+						loadbalancerHealth = false
+						copiedLB.Status.BackendsStatus[destination.Server] = "Unhealth"
+					} else {
+						copiedLB.Status.BackendsStatus[destination.Server] = "Health"
+					}
+					patch := client.MergeFrom(loadbalancer)
+					if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
+						return err
+					}
+				}
+
 			}
 		}
 	}
 
-	if health {
+	if loadbalancerHealth {
 		copiedLB := loadbalancer.DeepCopy()
 		copiedLB.Status.State = "Created"
 		copiedLB.Status.Health = "Healthy"
@@ -235,7 +286,7 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 		return err
 	}
 	annotations := map[string]string{
-		"external-dns.alpha.kubernetes.io/hostname": loadbalancer.GetName() + ".lb." + kubeberth.Spec.ExternalDNSDomainName,
+		"external-dns.alpha.kubernetes.io/hostname": loadbalancer.GetName() + ".loadbalancer." + kubeberth.Spec.ExternalDNSDomainName,
 	}
 
 	service := &corev1.Service{}
@@ -263,6 +314,7 @@ func (r *LoadBalancerReconciler) ensureServiceExists(ctx context.Context, loadba
 	copiedLB.Status.State = "Creating"
 	copiedLB.Status.IP = "None"
 	copiedLB.Status.Backends = loadbalancer.Spec.Backends
+	copiedLB.Status.BackendsStatus = map[string]string{}
 	copiedLB.Status.Health = "Unhealthy"
 	patch := client.MergeFrom(loadbalancer)
 	if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
