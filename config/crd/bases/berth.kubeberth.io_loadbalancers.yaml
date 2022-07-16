@@ -125,6 +125,10 @@ spec:
                   - server
                   type: object
                 type: array
+              backendsStatus:
+                additionalProperties:
+                  type: string
+                type: object
               health:
                 type: string
               ip:
@@ -132,6 +136,8 @@ spec:
               state:
                 type: string
             required:
+            - backends
+            - backendsStatus
             - health
             - ip
             - state
