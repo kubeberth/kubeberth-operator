@@ -225,9 +225,9 @@ func (r *LoadBalancerReconciler) ensureLoadBalancerExists(ctx context.Context, l
 					if _, err := d.Dial(network, address); err != nil {
 						log.Info(err.Error() + ": failed to check destination server connection health")
 						loadbalancerHealth = false
-						copiedLB.Status.BackendsStatus[destination.Server] = "Unhealth"
+						copiedLB.Status.BackendsStatus[destination.Server] = "Unhealthy"
 					} else {
-						copiedLB.Status.BackendsStatus[destination.Server] = "Health"
+						copiedLB.Status.BackendsStatus[destination.Server] = "Healthy"
 					}
 					patch := client.MergeFrom(loadbalancer)
 					if err := r.Status().Patch(ctx, copiedLB, patch); err != nil {
