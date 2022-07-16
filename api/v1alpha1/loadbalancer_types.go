@@ -45,10 +45,11 @@ type LoadBalancerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	State    string        `json:"state"`
-	IP       string        `json:"ip"`
-	Backends []Destination `json:"backends,omitempty"`
-	Health   string        `json:"health"`
+	State          string            `json:"state"`
+	IP             string            `json:"ip"`
+	Backends       []Destination     `json:"backends"`
+	BackendsStatus map[string]string `json:"backendsStatus"`
+	Health         string            `json:"health"`
 }
 
 //+kubebuilder:object:root=true
