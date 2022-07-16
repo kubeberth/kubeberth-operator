@@ -12,6 +12,5 @@ spec:
   #hosting: node-1.k8s.home.arpa   # optional
   disks:
     - name: disk-sample
-    - name: emptydisk-sample
   cloudinit:
     name: cloudinit-sample
