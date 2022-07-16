@@ -64,6 +64,18 @@ function create_kind_cluster {
   echo "Done!"
 }
 
+function deploy_calico {
+  echo -n "Deploy calico ... "
+  ./tools/kubectl apply -f ./hack/calico-setup.yaml > /dev/null
+  sleep 3
+  ./tools/kubectl apply -f ./hack/calico-kube-controllers.yaml > /dev/null
+  sleep 3
+  ./tools/kubectl apply -f ./hack/calico-node.yaml > /dev/null
+  sleep 3
+  echo "Done!"
+}
+
+
 function deploy_certmanager {
   local VERSION="v1.8.2"
   echo -n "Deploy cert-manager ${VERSION} ... "
@@ -77,8 +89,8 @@ function deploy_kubevirt {
   ./tools/kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml" > /dev/null
   sleep 3
   ./tools/kubectl apply -f hack/kubevirt-cr.yaml > /dev/null
-  echo -n " Wait for 30 seconds ... "
-  sleep 30
+  echo -n " Wait for 60 seconds ... "
+  sleep 60
   echo "Done!"
 }
 
@@ -88,8 +100,8 @@ function deploy_cdi {
   ./tools/kubectl apply -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${VERSION}/cdi-operator.yaml" > /dev/null
   sleep 3
   ./tools/kubectl apply -f hack/cdi-cr.yaml > /dev/null
-  echo -n " Wait for 30 seconds ... "
-  sleep 30
+  echo -n " Wait for 60 seconds ... "
+  sleep 60
   echo "Done!"
 }
 
@@ -123,6 +135,7 @@ install_kind
 install_kustomize
 install_virtctl
 create_kind_cluster
+deploy_calico
 deploy_certmanager
 deploy_kubevirt
 deploy_cdi
