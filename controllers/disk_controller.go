@@ -308,7 +308,7 @@ func (r *DiskReconciler) createDataVolumeSource(ctx context.Context, disk *berth
 		}
 
 		datavolumeSource.HTTP = &cdiv1.DataVolumeSourceHTTP{
-			URL: sourceArchive.Spec.Repository,
+			URL: sourceArchive.Status.Repository,
 		}
 
 	} else if disk.Spec.Source.Disk != nil {
