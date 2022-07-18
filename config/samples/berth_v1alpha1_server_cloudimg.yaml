@@ -11,6 +11,6 @@ spec:
   hostname: ubuntu-server
   #hosting: node-1.k8s.home.arpa   # optional
   disks:
-    - name: disk-sample
+  - name: disk-sample
   cloudinit:
     name: cloudinit-sample
