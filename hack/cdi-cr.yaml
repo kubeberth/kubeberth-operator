@@ -5,6 +5,8 @@ metadata:
   name: cdi
 spec:
   config:
+    #filesystemOverhead:
+      #global: "0.0"
     podResourceRequirements:
       limits:
         cpu: "2"

@@ -1,16 +1,16 @@
 apiVersion: berth.kubeberth.io/v1alpha1
 kind: Server
 metadata:
-  name: server-sample
+  name: server-sample-isoimage
   namespace: kubeberth
 spec:
   running: true
   cpu: 2
   memory: 2Gi
-  macAddress: 52:42:00:c7:90:10   # optional
+  macAddress: 52:42:00:c7:90:11   # optional
   hostname: ubuntu-server
   #hosting: node-1.k8s.home.arpa   # optional
   disks:
-    - name: emptydisk-sample
+  - name: emptydisk-sample
   isoimage:
     name: isoimage-sample

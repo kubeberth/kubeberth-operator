@@ -14,7 +14,7 @@ spec:
         - ExpandDisks
         - HotplugVolumes
         - LiveMigration
-      pvcTolerateLessSpaceUpToPercent: 0
+      #pvcTolerateLessSpaceUpToPercent: 0
   customizeComponents: {}
   imagePullPolicy: IfNotPresent
   infra:
