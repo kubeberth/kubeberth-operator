@@ -149,6 +149,9 @@ create-kind-cluster:
 .PHONY: delete-kind-cluster
 delete-kind-cluster:
 	kind delete cluster --name kubeberth-dev
+	docker stop minio > /dev/null
+	docker rm minio > /dev/null
+	rm -rf data
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

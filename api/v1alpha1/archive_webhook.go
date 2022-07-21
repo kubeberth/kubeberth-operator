@@ -20,23 +20,19 @@ import (
 	"context"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // log is for logging in this package.
-var disklog = logf.Log.WithName("disk-resource")
-var diskClient client.Client
+var archivelog = logf.Log.WithName("archive-resource")
 
-func (r *Disk) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	diskClient = mgr.GetClient()
+func (r *Archive) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -44,31 +40,39 @@ func (r *Disk) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-//+kubebuilder:webhook:path=/mutate-berth-kubeberth-io-v1alpha1-disk,mutating=true,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=disks,verbs=create;update,versions=v1alpha1,name=mdisk.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-berth-kubeberth-io-v1alpha1-archive,mutating=true,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=archives,verbs=create;update,versions=v1alpha1,name=marchive.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &Disk{}
+var _ webhook.Defaulter = &Archive{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Disk) Default() {
-	disklog.Info("default", "name", r.Name)
+func (r *Archive) Default() {
+	archivelog.Info("default", "name", r.Name)
 
 	// TODO(user): fill in your defaulting logic.
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-disk,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=disks,verbs=create;update;delete,versions=v1alpha1,name=vdisk.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-berth-kubeberth-io-v1alpha1-archive,mutating=false,failurePolicy=fail,sideEffects=None,groups=berth.kubeberth.io,resources=archives,verbs=create;update;delete,versions=v1alpha1,name=varchive.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Disk{}
+var _ webhook.Validator = &Archive{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Disk) ValidateCreate() error {
-	disklog.Info("validate create", "name", r.Name)
+func (r *Archive) ValidateCreate() error {
+	archivelog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
 	var errs field.ErrorList
 	ctx := context.Background()
 
-	if r.Spec.Source == nil {
+	if r.Spec.Repository == "" && r.Spec.Source == nil {
+		errs = append(errs, field.Invalid(field.NewPath("archive", "Spec"), r.Spec, "must be defined, Repository or Source"))
+	}
+
+	if r.Spec.Repository != "" && r.Spec.Source != nil {
+		errs = append(errs, field.Invalid(field.NewPath("archive", "Spec"), r.Spec, "conflict between Repository and Source"))
+	}
+
+	if r.Spec.Repository != "" && r.Spec.Source == nil {
 		return nil
 	}
 
@@ -99,7 +103,7 @@ func (r *Disk) ValidateCreate() error {
 	}
 
 	if len(errs) > 0 {
-		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Archive"}, r.Name, errs)
 		return err
 	}
 
@@ -107,47 +111,26 @@ func (r *Disk) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Disk) ValidateUpdate(old runtime.Object) error {
-	disklog.Info("validate update", "name", r.Name)
+func (r *Archive) ValidateUpdate(old runtime.Object) error {
+	archivelog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	var errs field.ErrorList
-	specSize := resource.MustParse(r.Spec.Size)
-	statusSize := resource.MustParse(r.Status.Size)
-
-	if (&statusSize).Cmp(specSize) > 0 {
-		errs = append(errs, field.Invalid(field.NewPath("state", "size"), r.Spec.Size, "must be larger than "+r.Status.Size))
-	}
-
-	if r.Status.State != "Detached" {
-		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Detached\""))
-	}
-
-	if len(errs) > 0 {
-		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
-		return err
-	}
-
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Disk) ValidateDelete() error {
-	disklog.Info("validate delete", "name", r.Name)
+func (r *Archive) ValidateDelete() error {
+	archivelog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	var errs field.ErrorList
 
-	if r.Status.State == "Provisioning" {
-		return nil
-	}
-
-	if r.Status.State != "Detached" {
-		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Detached\""))
+	if r.Status.State != "Created" {
+		errs = append(errs, field.Invalid(field.NewPath("status", "state"), r.Status.State, "state must be \"Created\""))
 	}
 
 	if len(errs) > 0 {
-		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Disk"}, r.Name, errs)
+		err := apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Archive"}, r.Name, errs)
 		return err
 	}
 

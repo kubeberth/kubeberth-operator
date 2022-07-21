@@ -62,8 +62,9 @@ func (r *KubeBerthReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	kubeberth.Status.VolumeMode = kubeberth.Spec.VolumeMode
+	kubeberth.Status.ArchiveRepositoryURL = kubeberth.Spec.ArchiveRepositoryURL
 	kubeberth.Status.StorageClass = kubeberth.Spec.StorageClassName
+	kubeberth.Status.VolumeMode = kubeberth.Spec.VolumeMode
 	kubeberth.Status.ExternalDNSDomain = kubeberth.Spec.ExternalDNSDomainName
 	if err := r.Status().Update(ctx, kubeberth); err != nil {
 		log.Error(err, "unable to update a status of the KubeBerth")

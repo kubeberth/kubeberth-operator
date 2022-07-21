@@ -57,6 +57,14 @@ function install_virtctl {
   echo "Done!"
 }
 
+function install_mc {
+  echo -n "Install mc ... "
+  curl -sL -o mc "https://dl.min.io/client/mc/release/${OS}-${ARCH}/mc"
+  chmod +x mc
+  mv ./mc tools
+  echo "Done!"
+}
+
 function create_kind_cluster {
   ./tools/kind create cluster --config ./hack/kind-kubeberth-dev.yaml
   echo -n "Updating node ... "
@@ -134,6 +142,7 @@ install_kubebuilder
 install_kind
 install_kustomize
 install_virtctl
+install_mc
 create_kind_cluster
 deploy_calico
 deploy_certmanager
@@ -145,10 +154,53 @@ echo "Deploy kubeberth-operator ... "
 make deploy > /dev/null
 echo -n " Wait for 90 seconds ... "
 sleep 90
-./tools/kubectl apply -f ./config/samples/berth_v1alpha1_kubeberth_storageclass_local-path.yaml > /dev/null
-./tools/kubectl config set-context $(./tools/kubectl config current-context) --namespace=kubeberth > /dev/null
 echo "Done!"
 
+echo "Deploy minio for Archive Repository ..."
+mkdir -p data
+docker run -d \
+  --network kind \
+  -p 9000:9000 \
+  -p 9001:9001 \
+  --user $(id -u):$(id -g) \
+  --name minio \
+  -e "MINIO_ROOT_USER=minio" \
+  -e "MINIO_ROOT_PASSWORD=miniominio" \
+  -v ${PWD}/data:/data \
+  quay.io/minio/minio server /data --console-address ":9001"
+sleep 3
+./tools/mc alias set local http://`docker inspect minio | jq '.[].NetworkSettings.Networks.kind.IPAddress' | tr -d '"'`:9000 minio miniominio
+./tools/mc mb local/kubeberth/archives
+./tools/mc policy set public local/kubeberth/archives
+echo "Done!"
+
+MINIO_IP_ADDRESS=`docker inspect minio | jq '.[].NetworkSettings.Networks.kind.IPAddress' | tr -d '"'`
+cat <<EOF | ./tools/kubectl apply -f - > /dev/null
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeberth
+
+---
+
+apiVersion: berth.kubeberth.io/v1alpha1
+kind: KubeBerth
+metadata:
+  name: kubeberth
+  namespace: kubeberth
+spec:
+  archiveRepositoryURL: "http://${MINIO_IP_ADDRESS}:9000"
+  accessKey: "minio"
+  secretKey: "miniominio"
+  archiveRepositoryTarget: "local/kubeberth/archives"
+  storageClassName: standard
+
+---
+EOF
+
+./tools/kubectl config set-context $(./tools/kubectl config current-context) --namespace=kubeberth > /dev/null
 ./tools/kubectl -n kubevirt wait kubevirt kubevirt --for condition=Available
 ./tools/kubectl -n cdi wait cdi cdi --for condition=Available
 
