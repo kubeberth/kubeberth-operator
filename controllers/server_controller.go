@@ -370,7 +370,7 @@ func (r *ServerReconciler) ensureServerExists(ctx context.Context, server *berth
 				return true, err
 			} else {
 				attachingDisk.Status.State = "Attached"
-				attachingDisk.Status.AttachedTo = server.GetName()
+				attachingDisk.Status.AttachedTo = "server.berth.kubeberth.io/" + server.GetName()
 				if err := r.Status().Update(ctx, attachingDisk); err != nil {
 					log.Error(err, "unable to update a status of the Disk")
 					return true, err

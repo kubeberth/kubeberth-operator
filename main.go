@@ -91,21 +91,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ArchiveReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Archive"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Archive")
-		os.Exit(1)
-	}
-
 	if err = (&controllers.ISOImageReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("ISOImage"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ISOImage")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.ArchiveReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Archive"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Archive")
 		os.Exit(1)
 	}
 
@@ -148,6 +148,11 @@ func main() {
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err = (&berthv1alpha1.KubeBerth{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "KubeBerth")
+			os.Exit(1)
+		}
+
+		if err = (&berthv1alpha1.Archive{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Archive")
 			os.Exit(1)
 		}
 

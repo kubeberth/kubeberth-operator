@@ -13,8 +13,12 @@ metadata:
   name: kubeberth
   namespace: kubeberth
 spec:
-  volumeMode: Block
+  archiveRepositoryURL: "http://minio.home.arpa:9000"
+  accessKey: "minio"
+  secretKey: "miniominio"
+  archiveRepositoryTarget: "minio/kubeberth/archives"
   storageClassName: longhorn
-  externalDNSDomainName: kubeberth.k8s.arpa
+  volumeMode: Block
+  externalDNSDomainName: "kubeberth.k8s.arpa"
 
 ---

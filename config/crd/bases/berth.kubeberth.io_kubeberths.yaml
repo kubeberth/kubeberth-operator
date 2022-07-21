@@ -16,6 +16,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.archiveRepositoryURL
+      name: ArchiveRepositoryURL
+      type: string
     - jsonPath: .status.storageClass
       name: StorageClass
       type: string
@@ -45,7 +48,19 @@ spec:
           spec:
             description: KubeBerthSpec defines the desired state of KubeBerth
             properties:
+              accessKey:
+                format: string
+                type: string
+              archiveRepositoryTarget:
+                format: string
+                type: string
+              archiveRepositoryURL:
+                format: string
+                type: string
               externalDNSDomainName:
+                type: string
+              secretKey:
+                format: string
                 type: string
               storageClassName:
                 format: string
@@ -55,11 +70,17 @@ spec:
                   to be consumed, either Block or Filesystem.
                 type: string
             required:
+            - accessKey
+            - archiveRepositoryTarget
+            - archiveRepositoryURL
+            - secretKey
             - storageClassName
             type: object
           status:
             description: KubeBerthStatus defines the observed state of KubeBerth
             properties:
+              archiveRepositoryURL:
+                type: string
               externalDNSDomain:
                 type: string
               storageClass:
@@ -69,6 +90,7 @@ spec:
                   to be consumed, either Block or Filesystem.
                 type: string
             required:
+            - archiveRepositoryURL
             - externalDNSDomain
             - storageClass
             - volumeMode

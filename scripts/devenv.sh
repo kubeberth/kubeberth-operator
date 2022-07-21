@@ -57,12 +57,21 @@ function install_virtctl {
   echo "Done!"
 }
 
+function install_mc {
+  echo -n "Install mc ... "
+  curl -sL -o mc "https://dl.min.io/client/mc/release/${OS}-${ARCH}/mc"
+  chmod +x mc
+  mv ./mc tools
+  echo "Done!"
+}
+
 mkdir -p tools
 install_kubectl
 install_kubebuilder
 install_kind
 install_kustomize
 install_virtctl
+install_mc
 
 echo
 echo "ALL DONE!!!"

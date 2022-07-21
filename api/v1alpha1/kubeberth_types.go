@@ -31,6 +31,18 @@ type KubeBerthSpec struct {
 
 	//+kubebuilder:validation:Required
 	//+kubebuilder:validation:Format=string
+	ArchiveRepositoryURL string `json:"archiveRepositoryURL"`
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Format=string
+	AccessKey string `json:"accessKey"`
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Format=string
+	SecretKey string `json:"secretKey"`
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Format=string
+	ArchiveRepositoryTarget string `json:"archiveRepositoryTarget"`
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Format=string
 	StorageClassName string `json:"storageClassName"`
 	//+optional
 	VolumeMode *corev1.PersistentVolumeMode `json:"volumeMode"`
@@ -43,12 +55,14 @@ type KubeBerthStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	StorageClass      string                       `json:"storageClass"`
-	VolumeMode        *corev1.PersistentVolumeMode `json:"volumeMode"`
-	ExternalDNSDomain string                       `json:"externalDNSDomain"`
+	ArchiveRepositoryURL string                       `json:"archiveRepositoryURL"`
+	StorageClass         string                       `json:"storageClass"`
+	VolumeMode           *corev1.PersistentVolumeMode `json:"volumeMode"`
+	ExternalDNSDomain    string                       `json:"externalDNSDomain"`
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:printcolumn:name="ArchiveRepositoryURL",type="string",JSONPath=".status.archiveRepositoryURL",description=""
 //+kubebuilder:printcolumn:name="StorageClass",type="string",JSONPath=".status.storageClass",description=""
 //+kubebuilder:printcolumn:name="VolumeMode",type="string",JSONPath=".status.volumeMode",description=""
 //+kubebuilder:printcolumn:name="ExternalDNSDomain",type="string",JSONPath=".status.externalDNSDomain",description=""

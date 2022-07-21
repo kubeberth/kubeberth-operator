@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/go-logr/logr"
 
@@ -37,7 +38,8 @@ import (
 )
 
 const (
-	diskRequeueAfter = time.Second * 1
+	diskRequeueAfter  = time.Second * 1
+	diskFinalizerName = "finalizers.disks.berth.kubeberth.io"
 )
 
 // DiskReconciler reconciles a Disk object
@@ -94,6 +96,13 @@ func (r *DiskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{Requeue: true}, err
 	} else if expanding {
 		return ctrl.Result{Requeue: true, RequeueAfter: diskRequeueAfter}, nil
+	}
+
+	if deleted, err := r.handleFinalizer(ctx, disk); err != nil {
+		log.Error(err, "failed to do handleFinalizer")
+		return ctrl.Result{Requeue: true}, err
+	} else if deleted {
+		return ctrl.Result{Requeue: false}, nil
 	}
 
 	return ctrl.Result{Requeue: false}, nil
@@ -199,6 +208,7 @@ func (r *DiskReconciler) ensureDiskExists(ctx context.Context, disk *berthv1alph
 				return true, err
 			}
 			sourceDisk.Status.State = "Detached"
+			sourceDisk.Status.AttachedTo = ""
 			if err := r.Status().Update(ctx, sourceDisk); err != nil {
 				log.Error(err, "unable to update a status of the source Disk")
 				return true, err
@@ -321,19 +331,58 @@ func (r *DiskReconciler) createDataVolumeSource(ctx context.Context, disk *berth
 			return nil, err
 		}
 		sourceDisk.Status.State = "Attached"
+		sourceDisk.Status.AttachedTo = "disk.berth.kubeberth.io/" + disk.GetName()
 		if err := r.Status().Update(ctx, sourceDisk); err != nil {
 			return nil, err
 		}
 
 		datavolumeSource.PVC = &cdiv1.DataVolumeSourcePVC{
 			Namespace: disk.GetNamespace(),
-			Name:      disk.Spec.Source.Disk.Name,
+			Name:      disk.Spec.Source.Disk.Name + "-disk",
 		}
 	} else {
 		datavolumeSource.Blank = &cdiv1.DataVolumeBlankImage{}
 	}
 
 	return datavolumeSource, nil
+}
+
+func (r *DiskReconciler) handleFinalizer(ctx context.Context, disk *berthv1alpha1.Disk) (deleted bool, err error) {
+	if disk.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(disk, diskFinalizerName) {
+			controllerutil.AddFinalizer(disk, diskFinalizerName)
+			if err := r.Update(ctx, disk); err != nil {
+				return false, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(disk, diskFinalizerName) {
+			if disk.Spec.Source.Disk != nil {
+				sourceDisk := &berthv1alpha1.Disk{}
+				nsn := types.NamespacedName{
+					Namespace: disk.GetNamespace(),
+					Name:      disk.Spec.Source.Disk.Name,
+				}
+				if err := r.Get(ctx, nsn, sourceDisk); err != nil {
+					return false, err
+				}
+				sourceDisk.Status.State = "Detached"
+				sourceDisk.Status.AttachedTo = ""
+				if err := r.Status().Update(ctx, sourceDisk); err != nil {
+					return false, err
+				}
+			}
+
+			controllerutil.RemoveFinalizer(disk, diskFinalizerName)
+			if err := r.Update(ctx, disk); err != nil {
+				return false, err
+			}
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
